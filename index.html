@@ -308,7 +308,7 @@ function startLive(){
 function autoTick(){
   if(!M.me || M.screen==="chat") return;
   refreshAll(true);
-  if(M.screen==="groups"){ loadGroups().then(function(){ var a=document.activeElement; if(a&&(a.id==="gname"||a.id==="gdesc"||a.id==="gpriv")) return; render(); }); }
+  if(M.screen==="groups"){ loadGroups().then(function(){ var a=document.activeElement; if(a&&(a.id==="gname"||a.id==="gdesc"||a.id==="gpriv"||a.id==="gcode")) return; render(); }); }
 }
 
 window.addFriend=async function(){ var h=$("handle").value.trim(); if(!h){toast("أدخل اسم مستخدم أو PIN");return} var r=await SB.rpc("find_profile_by_handle",{handle:h}); if(r.error){toast("خطأ: "+r.error.message);return} var f=Array.isArray(r.data)?r.data[0]:r.data; if(!f){toast("لم يُعثر على مستخدم مطابق");return} if(f.id===M.me.id){toast("لا يمكنك إضافة نفسك");return} var ins=await SB.from("friend_requests").insert({requester_id:M.me.id,recipient_id:f.id,source:h[0]==="@"?"username":"pin"}); if(ins.error){toast(ins.error.message.indexOf("duplicate")>=0?"الطلب مُرسَل مسبقًا":ins.error.message);return} $("handle").value="";toast("أُرسل طلب الصداقة ✓"); };
@@ -337,12 +337,14 @@ window.friendDetails=function(id){ var f=M.friends.find(function(x){return x.id=
     +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
   openModal(html); };
 window.groupDetails=function(conv){ var g=M.groups.find(function(x){return x.conversation_id===conv})||M.pubGroups.find(function(x){return x.conversation_id===conv}); if(!g)return; var nameSafe=esc(g.name).replace(/'/g,"");
+  var codeBlock = g.code ? ('<div class="qrbox">'+qrImg("GROUP:"+g.code,170)+'</div><div class="details"><div class="drow" onclick="copyText(\''+esc(g.code)+'\')"><span class="dk">كود المجموعة</span><span class="dv" style="direction:ltr;color:var(--tealdeep)">'+esc(g.code)+' ⧉</span></div></div>') : '';
   var html='<div class="sheet"><div class="handle"></div><div style="text-align:center">'
-    +'<div class="av g" style="width:72px;height:72px;font-size:28px;margin:0 auto 10px">'+esc(ini(g.name))+'</div>'
-    +'<div class="nm" style="font-size:19px">'+esc(g.name)+'</div>'
+    +'<div class="av g big" style="margin:0 auto 10px">'+esc(ini(g.name))+'</div>'
+    +'<div class="nm" style="font-size:20px">'+esc(g.name)+'</div>'
     +'<div class="mut" style="margin-top:4px">'+((g.privacy||"public")==="public"?"🌍 مجموعة عامة":"🔒 مجموعة خاصة")+' · '+(g.members||0)+' عضو</div>'
     +(g.description?'<div class="mut" style="margin-top:6px">'+esc(g.description)+'</div>':'')
-    +'</div><div style="display:grid;gap:8px;margin-top:16px">'
+    +'</div>'+codeBlock
+    +'<div style="display:grid;gap:8px;margin-top:14px">'
     +'<button class="btn primary full" onclick="closeModal();openGroup(\''+conv+'\',\''+nameSafe+'\')">💬 فتح المحادثة</button>'
     +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
   openModal(html); };
@@ -363,6 +365,7 @@ window.pingInChat=async function(){ if(!flag("messaging_enabled")){toast("الم
 window.pingFriend=async function(fid){ if(!flag("messaging_enabled")){toast("المراسلة معطّلة مؤقتًا");return} var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} var ins=await SB.from("messages").insert({conversation_id:r.data,sender_id:M.me.id,body:"📳",kind:"ping"}); if(ins.error){toast(ins.error.message);return} toast("نبّهت صديقك 📳"); };
 window.createGroup=async function(){ if(!flag("groups_enabled")){toast("المجموعات معطّلة");return} var nm=($("gname")&&$("gname").value||"").trim(); var pv=($("gpriv")&&$("gpriv").value)||"private"; var ds=($("gdesc")&&$("gdesc").value||"").trim(); if(!nm){toast("اكتب اسم المجموعة");return} if(pv==="public"&&!flag("public_groups_enabled")){toast("المجموعات العامة معطّلة");return} var r=await SB.rpc("create_group",{p_name:nm,p_privacy:pv,p_description:ds}); if(r.error){toast(r.error.message);return} toast("أُنشئت المجموعة ✓"); await loadGroups(); render(); };
 window.joinAndOpen=async function(gid,name){ var r=await SB.rpc("join_group",{p_group:gid}); if(r.error){toast(r.error.message);return} await loadGroups(); await openConv(r.data,name,true); };
+window.joinByCode=async function(){ var c=($("gcode")&&$("gcode").value||"").trim(); if(c.length<3){toast("أدخل كود المجموعة");return} var r=await SB.rpc("join_group_by_code",{p_code:c}); if(r.error){toast("لم يُعثر على مجموعة بهذا الكود");return} var row=Array.isArray(r.data)?r.data[0]:r.data; if(!row){toast("لم يُعثر على مجموعة بهذا الكود");return} await loadGroups(); await openConv(row.conversation_id, row.name, true); toast("انضممت للمجموعة ✓"); };
 window.makeQid=async function(){ var code=genCode(); var r=await SB.from("q_ids").insert({owner_id:M.me.id,code:code,purpose:"add_friend",max_uses:100}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("Q-ID جاهز: "+code); };
 window.killQid=async function(id){ await SB.from("q_ids").update({revoked:true}).eq("id",id); await refreshAll(true); render(); toast("أُلغي Q-ID") };
 window.saveProfile=async function(){ var dn=($("pn")&&$("pn").value||"").trim(), st=($("ps")&&$("ps").value||"").trim(); if(!dn){dn=M.profile.display_name||"مستخدم";} var r=await SB.from("profiles").update({display_name:dn,status:st}).eq("id",M.me.id).select().maybeSingle(); if(r.error){toast("تعذّر الحفظ: "+r.error.message);return} if(r.data){M.profile=r.data;}else{M.profile.display_name=dn;M.profile.status=st;} render(); toast("تم حفظ الملف ✓"); };
@@ -424,7 +427,7 @@ function scrGroups(){
     var rows=M.pubGroups.length?M.pubGroups.map(function(g){var nmeName=esc(g.name).replace(/'/g,"");var act=g.joined?("openGroup('"+g.conversation_id+"','"+nmeName+"')"):("joinAndOpen('"+g.id+"','"+nmeName+"')");return '<div class="row" onclick="'+act+'"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')">'+esc(g.name)+'</div><div class="mut">'+esc(g.description||"")+' · '+g.members+' عضو</div></div>'+(g.joined?'<span class="chip secondary">فتح</span>':'<span class="chip on">انضمام</span>')+'</div>'}).join(""):'<div class="empty">لا مجموعات عامة بعد. أنشئ واحدة!</div>';
     pub='<div class="shead"><h3>مجموعات عامة</h3><span class="badge">'+M.pubGroups.length+'</span></div><div class="card">'+rows+'</div>';
   }
-  return backBtn()+'<div class="shead" style="margin-top:0"><h3>مجموعاتي</h3><span class="badge">'+M.groups.length+'</span></div><div class="card">'+mine+'</div>'+create+pub;
+  return backBtn()+'<div class="addbar"><input id="gcode" placeholder="انضم بكود مجموعة: G-XXXXX" onkeydown="if(event.key===\'Enter\')joinByCode()"/><button class="cb" onclick="joinByCode()" title="انضمام">↳</button></div><div class="shead" style="margin-top:0"><h3>مجموعاتي</h3><span class="badge">'+M.groups.length+'</span></div><div class="card">'+mine+'</div>'+create+pub;
 }
 function scrChat(){
   return '<div class="chatwrap">'
