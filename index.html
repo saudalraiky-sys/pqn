@@ -122,6 +122,17 @@ body.dark .voicebtn{color:#ffd98a}
 .av{position:relative}
 .unread{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--rose);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;border:2px solid var(--surface);box-shadow:0 2px 6px rgba(0,0,0,.2)}
 .unread.inline{position:static;display:inline-grid;border:0;box-shadow:none;vertical-align:middle;margin-inline-start:6px;height:18px}
+.av img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.av.big{width:84px;height:84px;font-size:32px}
+.avwrap{position:relative;width:84px;margin:0 auto}
+.avedit{position:absolute;bottom:-2px;left:-2px;width:30px;height:30px;border-radius:50%;background:var(--teal);color:#053a37;font-size:14px;border:2px solid var(--surface);display:grid;place-items:center}
+.qrbox{display:flex;flex-direction:column;align-items:center;margin:6px 0}
+.qr{width:170px;height:170px;border-radius:12px;background:#fff;padding:8px;border:1px solid var(--line)}
+.details{margin-top:10px}
+.drow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.drow:last-child{border-bottom:0}
+.dk{color:var(--muted);font-size:12.5px}
+.dv{font-weight:700;font-size:13.5px}
 .addbar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--soft);padding:7px;margin-bottom:14px}
 .addbar input{border:0;outline:0;background:transparent;font-size:14px;padding:11px;min-width:0}
 .addbar .cb{width:44px;height:44px;font-size:24px}
@@ -172,6 +183,8 @@ const ACCENTS={teal:["#27B8AE","#57D7CF","#0f6e56"],blue:["#3B82F6","#7DA9FB","#
 
 function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function ini(n){return (n||"؟").trim().slice(0,1)}
+function avatarInner(p){ return (p&&p.avatar_url)?'<img src="'+esc(p.avatar_url)+'" alt=""/>':esc(ini((p&&p.display_name)||"?")); }
+function qrImg(data,size){ var s=size||170; return '<img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size='+s+'x'+s+'&margin=8&data='+encodeURIComponent(data)+'" alt="QR"/>'; }
 function toast(m){var e=$("toast");e.textContent=m;e.classList.add("show");clearTimeout(window._t);window._t=setTimeout(function(){e.classList.remove("show")},2600)}
 function tm(iso){try{return new Date(iso).toLocaleTimeString("ar",{hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
 function dt(iso){try{return new Date(iso).toLocaleString("ar",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
@@ -272,7 +285,7 @@ async function refreshAll(silent){
   var f=await SB.rpc("my_friends"); M.friends=f.data||[];
   var rq=await SB.from("friend_requests").select("*").eq("recipient_id",M.me.id).eq("status","pending");
   var reqs=rq.data||[]; var ids=reqs.map(function(r){return r.requester_id}); var profs=[];
-  if(ids.length){ var p=await SB.from("profiles").select("id,display_name,username").in("id",ids); profs=p.data||[]; }
+  if(ids.length){ var p=await SB.from("profiles").select("id,display_name,username,avatar_url,status").in("id",ids); profs=p.data||[]; }
   M.requests=reqs.map(function(r){ r.profile=profs.find(function(p){return p.id===r.requester_id})||{display_name:"مستخدم"}; return r });
   var q=await SB.from("q_ids").select("*").eq("owner_id",M.me.id).order("created_at",{ascending:false}); M.qids=q.data||[];
   var sig=M.friends.length+"/"+M.requests.length+"/"+M.qids.length; var changed=(sig!==M.sig); M.sig=sig;
@@ -306,12 +319,19 @@ window.openGroup=async function(conv,name){ await openConv(conv, name, true); };
 window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; };
 window.closeModal=function(){ var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
 window.friendDetails=function(id){ var f=M.friends.find(function(x){return x.id===id}); if(!f)return;
+  var rows='';
+  if(f.username) rows+='<div class="drow" onclick="copyText(\'@'+esc(f.username)+'\')"><span class="dk">المعرّف</span><span class="dv" style="direction:ltr;color:var(--tealdeep)">@'+esc(f.username)+' ⧉</span></div>';
+  if(f.pin) rows+='<div class="drow" onclick="copyText(\''+esc(f.pin)+'\')"><span class="dk">الكود (PIN)</span><span class="dv" style="direction:ltr">'+esc(f.pin)+' ⧉</span></div>';
+  if(f.status) rows+='<div class="drow"><span class="dk">الحالة</span><span class="dv">'+esc(f.status)+'</span></div>';
+  var qrData = f.username?("@"+f.username):(f.pin||f.display_name);
   var html='<div class="sheet"><div class="handle"></div><div style="text-align:center">'
-    +'<div class="av" style="width:72px;height:72px;font-size:28px;margin:0 auto 10px">'+esc(ini(f.display_name))+'</div>'
-    +'<div class="nm" style="font-size:19px">'+esc(f.display_name)+'</div>'
-    +(f.username?'<div class="mut" style="direction:ltr;color:var(--tealdeep);font-weight:700;cursor:pointer;margin-top:2px" onclick="copyText(\'@'+esc(f.username)+'\')">@'+esc(f.username)+' ⧉</div>':'')
-    +(f.status?'<div class="mut" style="margin-top:6px">'+esc(f.status)+'</div>':'')
-    +'</div><div style="display:grid;gap:8px;margin-top:16px">'
+    +'<div class="av big" style="margin:0 auto 10px">'+avatarInner(f)+'</div>'
+    +'<div class="nm" style="font-size:20px">'+esc(f.display_name)+'</div>'
+    +(f.username?'<div class="mut" style="direction:ltr;color:var(--tealdeep);font-weight:700;margin-top:2px">@'+esc(f.username)+'</div>':'')
+    +'</div>'
+    +'<div class="qrbox">'+qrImg(qrData)+'<div class="mut" style="text-align:center;margin-top:6px">امسح الباركود لإضافته</div></div>'
+    +'<div class="details">'+rows+'</div>'
+    +'<div style="display:grid;gap:8px;margin-top:14px">'
     +'<button class="btn primary full" onclick="closeModal();openChat(\''+f.id+'\')">💬 بدء المحادثة</button>'
     +'<button class="btn secondary full" onclick="pingFriend(\''+f.id+'\')">📳 إرسال تنبيه</button>'
     +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
@@ -346,6 +366,8 @@ window.joinAndOpen=async function(gid,name){ var r=await SB.rpc("join_group",{p_
 window.makeQid=async function(){ var code=genCode(); var r=await SB.from("q_ids").insert({owner_id:M.me.id,code:code,purpose:"add_friend",max_uses:100}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("Q-ID جاهز: "+code); };
 window.killQid=async function(id){ await SB.from("q_ids").update({revoked:true}).eq("id",id); await refreshAll(true); render(); toast("أُلغي Q-ID") };
 window.saveProfile=async function(){ var dn=($("pn")&&$("pn").value||"").trim(), st=($("ps")&&$("ps").value||"").trim(); if(!dn){dn=M.profile.display_name||"مستخدم";} var r=await SB.from("profiles").update({display_name:dn,status:st}).eq("id",M.me.id).select().maybeSingle(); if(r.error){toast("تعذّر الحفظ: "+r.error.message);return} if(r.data){M.profile=r.data;}else{M.profile.display_name=dn;M.profile.status=st;} render(); toast("تم حفظ الملف ✓"); };
+window.pickAvatar=function(){ var el=$("avInput"); if(el){ el.value=""; el.click(); } };
+window.onAvatarPicked=async function(ev){ var f=ev.target.files&&ev.target.files[0]; if(!f)return; toast("...جارٍ رفع الصورة"); var ext=((f.name.split(".").pop())||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg"; var path="avatars/"+M.me.id+"-"+Date.now()+"."+ext; var up=await SB.storage.from("media").upload(path,f,{contentType:f.type||"image/jpeg",upsert:true}); if(up.error){toast("تعذّر الرفع: "+up.error.message);return} var url=SB.storage.from("media").getPublicUrl(path).data.publicUrl; var r=await SB.from("profiles").update({avatar_url:url}).eq("id",M.me.id).select().maybeSingle(); if(r.error){toast("تعذّر الحفظ: "+r.error.message);return} if(r.data)M.profile=r.data; else M.profile.avatar_url=url; render(); toast("تم تحديث الصورة ✓"); };
 window.copyPin=function(){ try{navigator.clipboard.writeText(M.profile.pin);toast("نُسخ الـ PIN ✓")}catch(e){toast(M.profile.pin)} };
 window.copyText=function(t){ try{navigator.clipboard.writeText(t);toast("نُسخ ✓")}catch(e){toast(t)} };
 window.sendSuggestion=async function(){ var t=($("sg")&&$("sg").value||"").trim(); if(!t){toast("اكتب اقتراحك أولًا");return} var r=await SB.from("suggestions").insert({author_id:M.me.id,author_name:M.profile.display_name,body:t}); if(r.error){toast(r.error.message);return} $("sg").value=""; toast("شكرًا! وصل اقتراحك ✓"); };
@@ -376,8 +398,8 @@ function render(){
   if(M.screen==="chat") thread();
 }
 function scrFriends(){
-  var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+esc(ini(r.profile.display_name))+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+esc(r.profile.username||r.source||"")+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
-  var fr=M.friends.length?M.friends.map(function(f){var u=M.unread[f.id]||0;var ub=u>0?'<span class="unread">'+u+'</span>':'';return '<div class="row" onclick="openChat(\''+f.id+'\')"><div class="av">'+esc(ini(f.display_name))+ub+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();friendDetails(\''+f.id+'\')">'+esc(f.display_name)+(u>0?' <span class="unread inline">'+u+'</span>':'')+'</div><div class="mut">'+(f.username?'@'+esc(f.username)+(f.status?' · ':''):'')+esc(f.status||"")+'</div></div><button class="chip ping" onclick="event.stopPropagation();pingFriend(\''+f.id+'\')" title="تنبيه">📳</button></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.</div>';
+  var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+avatarInner(r.profile)+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+(r.profile.username?'@'+esc(r.profile.username):esc(r.source||""))+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
+  var fr=M.friends.length?M.friends.map(function(f){var u=M.unread[f.id]||0;var ub=u>0?'<span class="unread">'+u+'</span>':'';return '<div class="row" onclick="openChat(\''+f.id+'\')"><div class="av">'+avatarInner(f)+ub+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();friendDetails(\''+f.id+'\')">'+esc(f.display_name)+(u>0?' <span class="unread inline">'+u+'</span>':'')+'</div><div class="mut">'+(f.username?'@'+esc(f.username)+(f.status?' · ':''):'')+esc(f.status||"")+'</div></div><button class="chip ping" onclick="event.stopPropagation();pingFriend(\''+f.id+'\')" title="تنبيه">📳</button></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.</div>';
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">+</button></div>'
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
     +'<div class="qstats">'
@@ -438,7 +460,22 @@ function scrQid(){
 }
 function scrProfile(){
   var p=M.profile;
-  return backBtn()+'<div class="card" style="text-align:center"><div class="av" style="width:82px;height:82px;font-size:32px;margin:0 auto 12px">'+esc(ini(p.display_name))+'</div><div class="nm" style="font-size:19px">'+esc(p.display_name)+'</div><div class="mut" style="direction:ltr;cursor:pointer;color:var(--tealdeep);font-weight:700" onclick="copyText(\'@'+esc(p.username||"")+'\')">@'+esc(p.username||"")+'</div><div class="mut" style="margin-top:4px">'+esc(p.status||"")+'</div><div style="margin-top:12px"><span class="pin" style="background:var(--navy);color:#eafaf8" onclick="copyPin()">'+esc(p.pin)+'</span></div></div>'
+  var qrData=p.username?("@"+p.username):(p.pin||p.display_name);
+  return backBtn()
+    +'<div class="card" style="text-align:center">'
+      +'<div class="avwrap"><div class="av big" style="margin:0 auto">'+avatarInner(p)+'</div><button class="avedit" onclick="pickAvatar()" title="تغيير الصورة">📷</button></div>'
+      +'<div class="nm" style="font-size:20px;margin-top:10px">'+esc(p.display_name)+'</div>'
+      +'<div class="mut" style="direction:ltr;cursor:pointer;color:var(--tealdeep);font-weight:700" onclick="copyText(\'@'+esc(p.username||"")+'\')">@'+esc(p.username||"")+' ⧉</div>'
+      +(p.status?'<div class="mut" style="margin-top:4px">'+esc(p.status)+'</div>':'')
+      +'<input type="file" id="avInput" accept="image/*" style="display:none" onchange="onAvatarPicked(event)"/>'
+    +'</div>'
+    +'<div class="card" style="text-align:center"><div class="shead" style="margin-top:0;justify-content:center"><h3>بطاقتي · شاركها ليضيفك الآخرون</h3></div>'
+      +'<div class="qrbox">'+qrImg(qrData,190)+'</div>'
+      +'<div class="details" style="margin-top:6px">'
+        +'<div class="drow" onclick="copyText(\'@'+esc(p.username||"")+'\')"><span class="dk">المعرّف</span><span class="dv" style="direction:ltr;color:var(--tealdeep)">@'+esc(p.username||"")+' ⧉</span></div>'
+        +'<div class="drow" onclick="copyPin()"><span class="dk">الكود (PIN)</span><span class="dv" style="direction:ltr">'+esc(p.pin)+' ⧉</span></div>'
+      +'</div>'
+    +'</div>'
     +'<div class="card"><div class="field2"><label>اسم العرض</label><input id="pn" value="'+esc(p.display_name)+'"/></div><div class="field2"><label>الحالة</label><input id="ps" value="'+esc(p.status||"")+'"/></div><button class="btn primary full" onclick="saveProfile()">حفظ</button></div>';
 }
 function scrSettings(){
