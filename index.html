@@ -119,6 +119,9 @@ body.dark .voicebtn{color:#ffd98a}
 .btn.soft{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
 .row .nm{cursor:pointer}
 .row[onclick]{cursor:pointer}
+.av{position:relative}
+.unread{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--rose);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;border:2px solid var(--surface);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.unread.inline{position:static;display:inline-grid;border:0;box-shadow:none;vertical-align:middle;margin-inline-start:6px;height:18px}
 .addbar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--soft);padding:7px;margin-bottom:14px}
 .addbar input{border:0;outline:0;background:transparent;font-size:14px;padding:11px;min-width:0}
 .addbar .cb{width:44px;height:44px;font-size:24px}
@@ -164,7 +167,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SB = createClient("https://dnocxanataaawgvdfaoj.supabase.co","sb_publishable_6bbK3b4jiarVU8iW-8z8ig_Ia5EzWCp",{auth:{persistSession:true,autoRefreshToken:true,storageKey:"pqn-session"}});
 const VAPID_PUBLIC="BPgIBMTrxjgsqJ7llZ2nuaGxWBPUwfg-zlZ0PlsOTerrRQODcZ64jRQ-A5pHQQ86T023cnUpVkv4QLgj4TBeJv4";
 const $ = function(id){return document.getElementById(id)};
-const M = { me:null, profile:null, friends:[], requests:[], qids:[], groups:[], pubGroups:[], suggestions:[], stats:null, recent:[], flags:{}, owner:false, screen:"friends", conv:null, friend:null, isGroup:false, members:{}, msgs:[], chan:null, live:null, poll:null, booting:false, sig:"" };
+const M = { me:null, profile:null, friends:[], requests:[], qids:[], groups:[], pubGroups:[], suggestions:[], stats:null, recent:[], flags:{}, owner:false, screen:"friends", prev:"friends", conv:null, friend:null, isGroup:false, members:{}, msgs:[], chan:null, live:null, poll:null, booting:false, sig:"", unread:{} };
 const ACCENTS={teal:["#27B8AE","#57D7CF","#0f6e56"],blue:["#3B82F6","#7DA9FB","#1E3A8A"],amber:["#D9A441","#EAC374","#8A5B00"],rose:["#C85C5C","#E08A8A","#7E3030"],green:["#3FA37C","#74C7A0","#1F6E4E"],purple:["#8B5CF6","#B49BFA","#4C2E91"]};
 
 function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -199,7 +202,7 @@ window.installApp=async function(){
 function b64ToU8(s){var pad="=".repeat((4-s.length%4)%4);var b=(s+pad).replace(/-/g,"+").replace(/_/g,"/");var raw=atob(b);var arr=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr}
 async function registerPush(){try{if(!("serviceWorker" in navigator)||!("PushManager" in window))return;if(!("Notification" in window)||Notification.permission!=="granted")return;var reg=await navigator.serviceWorker.register("sw.js");await navigator.serviceWorker.ready;var sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});var j=sub.toJSON();if(M.me)await SB.from("push_subscriptions").insert({user_id:M.me.id,endpoint:j.endpoint,data:j})}catch(e){}}
 async function askNotify(){try{if(!("Notification" in window))return;var p=Notification.permission;if(p==="default")p=await Notification.requestPermission();if(p==="granted")await registerPush()}catch(e){}}
-function notify(title,body){try{if("Notification" in window&&Notification.permission==="granted")new Notification(title,{body:body,tag:"pqn",lang:"ar",dir:"rtl"})}catch(e){}}
+function notify(title,body,tag){try{if("Notification" in window&&Notification.permission==="granted")new Notification(title,{body:body,tag:tag||"pqn",renotify:true,lang:"ar",dir:"rtl"})}catch(e){}}
 window.enableNotifs=async function(){await askNotify();if(("Notification" in window)&&Notification.permission==="granted")toast("تم تفعيل الإشعارات ✓");else toast("لم يُمنح الإذن — فعّله من إعدادات المتصفّح")};
 
 var EMO=["😀","😂","🥹","😍","😘","😎","🤔","😴","😭","😡","👍","🙏","👏","🙌","💪","🔥","✨","🎉","❤️","💔","💯","✅","❌","⚡","🌹","🌿","☕","🍕","⚽","🎵","📷","🎤","📳","👋","🤝","🫶","😅","🥰","😏","🤯","🙈","🥳","🤩","😇","🤗","😬","👌","💚"];
@@ -284,7 +287,7 @@ function startLive(){
   M.live=SB.channel("live-"+M.me.id)
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"recipient_id=eq."+M.me.id},function(){ var n=M.requests.length; refreshAll(true).then(function(){ if(M.requests.length>n){ buzz(); toast("📬 طلب صداقة جديد"); notify("PQN","📬 طلب صداقة جديد"); } }); })
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"requester_id=eq."+M.me.id},function(){ refreshAll(true); })
-    .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){ var m=p.new; if(m.sender_id===M.me.id) return; if(M.screen==="chat"&&m.conversation_id===M.conv) return; var fr=M.friends.find(function(x){return x.id===m.sender_id}); var who=(fr&&fr.display_name)||"رسالة"; if(m.kind==="ping"){ pingAlert(); inAppNote("📳 "+who, "نبّهك بتنبيه", m.conversation_id, who); notify(who,"📳 نبّهك"); } else { buzz([45]); playBlip(); var prev=m.kind==="image"?"📷 صورة":(m.kind==="voice"?"🎤 رسالة صوتية (مرة واحدة)":(m.body||"رسالة جديدة")); inAppNote("📨 "+who, prev, m.conversation_id, who); notify(who, prev); } })
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){ var m=p.new; if(m.sender_id===M.me.id) return; if(M.screen==="chat"&&m.conversation_id===M.conv) return; var fr=M.friends.find(function(x){return x.id===m.sender_id}); var who=(fr&&fr.display_name)||"رسالة"; M.unread[m.sender_id]=(M.unread[m.sender_id]||0)+1; if(M.screen==="friends") render(); if(m.kind==="ping"){ pingAlert(); inAppNote("📳 "+who, "نبّهك بتنبيه", m.conversation_id, who); notify("📳 "+who,"نبّهك", m.sender_id); } else { buzz([45]); playBlip(); var prev=m.kind==="image"?"📷 صورة":(m.kind==="voice"?"🎤 رسالة صوتية (مرة واحدة)":(m.body||"رسالة جديدة")); var cnt=M.unread[m.sender_id]; inAppNote("📨 "+who+(cnt>1?" ("+cnt+")":""), prev, m.conversation_id, who); notify(who+(cnt>1?" ("+cnt+" رسائل)":""), prev, m.sender_id); } })
     .subscribe();
   if(!M.poll) M.poll=setInterval(autoTick, 7000);
   document.addEventListener("visibilitychange", function(){ if(!document.hidden && M.me) autoTick(); });
@@ -298,7 +301,7 @@ function autoTick(){
 window.addFriend=async function(){ var h=$("handle").value.trim(); if(!h){toast("أدخل اسم مستخدم أو PIN");return} var r=await SB.rpc("find_profile_by_handle",{handle:h}); if(r.error){toast("خطأ: "+r.error.message);return} var f=Array.isArray(r.data)?r.data[0]:r.data; if(!f){toast("لم يُعثر على مستخدم مطابق");return} if(f.id===M.me.id){toast("لا يمكنك إضافة نفسك");return} var ins=await SB.from("friend_requests").insert({requester_id:M.me.id,recipient_id:f.id,source:h[0]==="@"?"username":"pin"}); if(ins.error){toast(ins.error.message.indexOf("duplicate")>=0?"الطلب مُرسَل مسبقًا":ins.error.message);return} $("handle").value="";toast("أُرسل طلب الصداقة ✓"); };
 window.acceptReq=async function(id){ var r=await SB.rpc("accept_friend_request",{req_id:id}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("تم القبول ✓") };
 window.declineReq=async function(id){ await SB.from("friend_requests").update({status:"declined"}).eq("id",id); await refreshAll(true); render(); toast("تم الرفض") };
-window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.id===fid}); if(!fr)return; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} await openConv(r.data, fr.display_name, false); };
+window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.id===fid}); if(!fr)return; if(M.unread[fid]){ M.unread[fid]=0; } var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} await openConv(r.data, fr.display_name, false); };
 window.openGroup=async function(conv,name){ await openConv(conv, name, true); };
 window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; };
 window.closeModal=function(){ var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
@@ -374,7 +377,7 @@ function render(){
 }
 function scrFriends(){
   var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+esc(ini(r.profile.display_name))+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+esc(r.profile.username||r.source||"")+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
-  var fr=M.friends.length?M.friends.map(function(f){return '<div class="row" onclick="openChat(\''+f.id+'\')"><div class="av">'+esc(ini(f.display_name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();friendDetails(\''+f.id+'\')">'+esc(f.display_name)+'</div><div class="mut">'+(f.username?'@'+esc(f.username)+(f.status?' · ':''):'')+esc(f.status||"")+'</div></div><button class="chip ping" onclick="event.stopPropagation();pingFriend(\''+f.id+'\')" title="تنبيه">📳</button></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.</div>';
+  var fr=M.friends.length?M.friends.map(function(f){var u=M.unread[f.id]||0;var ub=u>0?'<span class="unread">'+u+'</span>':'';return '<div class="row" onclick="openChat(\''+f.id+'\')"><div class="av">'+esc(ini(f.display_name))+ub+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();friendDetails(\''+f.id+'\')">'+esc(f.display_name)+(u>0?' <span class="unread inline">'+u+'</span>':'')+'</div><div class="mut">'+(f.username?'@'+esc(f.username)+(f.status?' · ':''):'')+esc(f.status||"")+'</div></div><button class="chip ping" onclick="event.stopPropagation();pingFriend(\''+f.id+'\')" title="تنبيه">📳</button></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.</div>';
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">+</button></div>'
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
     +'<div class="qstats">'
