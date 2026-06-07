@@ -111,6 +111,14 @@ body.dark .voicebtn{color:#ffd98a}
 .banner .bt{font-weight:800;font-size:13px}
 .banner .bb{font-size:12px;color:#bcd3da;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
 .banner .bi{font-size:22px;flex:0 0 auto}
+.modal{position:fixed;inset:0;z-index:300;display:none;align-items:flex-end;justify-content:center;background:rgba(7,19,31,.55)}
+.modal.show{display:flex}
+.sheet{width:100%;max-width:520px;background:var(--surface);border-radius:18px 18px 0 0;padding:16px;box-shadow:var(--shadow);animation:slideup .25s ease}
+@keyframes slideup{from{transform:translateY(50px);opacity:.5}to{transform:translateY(0);opacity:1}}
+.handle{width:44px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px}
+.btn.soft{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+.row .nm{cursor:pointer}
+.row[onclick]{cursor:pointer}
 .addbar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--soft);padding:7px;margin-bottom:14px}
 .addbar input{border:0;outline:0;background:transparent;font-size:14px;padding:11px;min-width:0}
 .addbar .cb{width:44px;height:44px;font-size:24px}
@@ -146,6 +154,7 @@ body.chatting .body{overflow:hidden;padding:12px 14px 0}
     <span class="live"><span class="dot"></span>مباشر</span>
   </div>
   <div class="banner" id="banner"></div>
+  <div class="modal" id="modal"></div>
   <div class="body" id="screen"><div class="spin"></div></div>
   <nav class="nav" id="nav"></nav>
 </div>
@@ -291,6 +300,29 @@ window.acceptReq=async function(id){ var r=await SB.rpc("accept_friend_request",
 window.declineReq=async function(id){ await SB.from("friend_requests").update({status:"declined"}).eq("id",id); await refreshAll(true); render(); toast("تم الرفض") };
 window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.id===fid}); if(!fr)return; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} await openConv(r.data, fr.display_name, false); };
 window.openGroup=async function(conv,name){ await openConv(conv, name, true); };
+window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; };
+window.closeModal=function(){ var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
+window.friendDetails=function(id){ var f=M.friends.find(function(x){return x.id===id}); if(!f)return;
+  var html='<div class="sheet"><div class="handle"></div><div style="text-align:center">'
+    +'<div class="av" style="width:72px;height:72px;font-size:28px;margin:0 auto 10px">'+esc(ini(f.display_name))+'</div>'
+    +'<div class="nm" style="font-size:19px">'+esc(f.display_name)+'</div>'
+    +(f.username?'<div class="mut" style="direction:ltr;color:var(--tealdeep);font-weight:700;cursor:pointer;margin-top:2px" onclick="copyText(\'@'+esc(f.username)+'\')">@'+esc(f.username)+' ⧉</div>':'')
+    +(f.status?'<div class="mut" style="margin-top:6px">'+esc(f.status)+'</div>':'')
+    +'</div><div style="display:grid;gap:8px;margin-top:16px">'
+    +'<button class="btn primary full" onclick="closeModal();openChat(\''+f.id+'\')">💬 بدء المحادثة</button>'
+    +'<button class="btn secondary full" onclick="pingFriend(\''+f.id+'\')">📳 إرسال تنبيه</button>'
+    +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
+  openModal(html); };
+window.groupDetails=function(conv){ var g=M.groups.find(function(x){return x.conversation_id===conv})||M.pubGroups.find(function(x){return x.conversation_id===conv}); if(!g)return; var nameSafe=esc(g.name).replace(/'/g,"");
+  var html='<div class="sheet"><div class="handle"></div><div style="text-align:center">'
+    +'<div class="av g" style="width:72px;height:72px;font-size:28px;margin:0 auto 10px">'+esc(ini(g.name))+'</div>'
+    +'<div class="nm" style="font-size:19px">'+esc(g.name)+'</div>'
+    +'<div class="mut" style="margin-top:4px">'+((g.privacy||"public")==="public"?"🌍 مجموعة عامة":"🔒 مجموعة خاصة")+' · '+(g.members||0)+' عضو</div>'
+    +(g.description?'<div class="mut" style="margin-top:6px">'+esc(g.description)+'</div>':'')
+    +'</div><div style="display:grid;gap:8px;margin-top:16px">'
+    +'<button class="btn primary full" onclick="closeModal();openGroup(\''+conv+'\',\''+nameSafe+'\')">💬 فتح المحادثة</button>'
+    +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
+  openModal(html); };
 async function openConv(conv, name, isGroup){
   M.conv=conv; M.friend={display_name:name}; M.isGroup=isGroup; M.members={};
   if(isGroup){ try{ var mm=await SB.from("conversation_members").select("user_id").eq("conversation_id",conv); var ids=(mm.data||[]).map(function(x){return x.user_id}); if(ids.length){ var pr=await SB.from("profiles").select("id,display_name").in("id",ids); (pr.data||[]).forEach(function(p){M.members[p.id]=p.display_name}); } }catch(e){} }
@@ -336,7 +368,7 @@ function render(){
 }
 function scrFriends(){
   var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+esc(ini(r.profile.display_name))+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+esc(r.profile.username||r.source||"")+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
-  var fr=M.friends.length?M.friends.map(function(f){return '<div class="row"><div class="av">'+esc(ini(f.display_name))+'</div><div class="grow"><div class="nm">'+esc(f.display_name)+'</div><div class="mut">'+(f.username?'@'+esc(f.username)+(f.status?' · ':''):'')+esc(f.status||"")+'</div></div><div class="acts"><button class="chip ping" onclick="pingFriend(\''+f.id+'\')" title="تنبيه">📳</button><button class="chip secondary" onclick="openChat(\''+f.id+'\')">محادثة</button></div></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.</div>';
+  var fr=M.friends.length?M.friends.map(function(f){return '<div class="row" onclick="openChat(\''+f.id+'\')"><div class="av">'+esc(ini(f.display_name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();friendDetails(\''+f.id+'\')">'+esc(f.display_name)+'</div><div class="mut">'+(f.username?'@'+esc(f.username)+(f.status?' · ':''):'')+esc(f.status||"")+'</div></div><button class="chip ping" onclick="event.stopPropagation();pingFriend(\''+f.id+'\')" title="تنبيه">📳</button></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.</div>';
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">+</button></div>'
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
     +'<div class="qstats">'
@@ -349,7 +381,7 @@ function scrFriends(){
 }
 function scrGroups(){
   if(!flag("groups_enabled")) return '<div class="strip warn">المجموعات معطّلة حاليًا من قِبل المالك.</div>';
-  var mine=M.groups.length?M.groups.map(function(g){return '<div class="row"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm">'+esc(g.name)+'</div><div class="mut">'+(g.privacy==="public"?"عامة":"خاصة")+' · '+g.members+' عضو</div></div><button class="chip secondary" onclick="openGroup(\''+g.conversation_id+'\',\''+esc(g.name).replace(/'/g,"")+'\')">فتح</button></div>'}).join(""):'<div class="empty">لست في أي مجموعة بعد.</div>';
+  var mine=M.groups.length?M.groups.map(function(g){var ns=esc(g.name).replace(/'/g,"");return '<div class="row" onclick="openGroup(\''+g.conversation_id+'\',\''+ns+'\')"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')">'+esc(g.name)+'</div><div class="mut">'+(g.privacy==="public"?"عامة":"خاصة")+' · '+g.members+' عضو</div></div><span class="chip secondary">فتح</span></div>'}).join(""):'<div class="empty">لست في أي مجموعة بعد.</div>';
   var pubOpt = flag("public_groups_enabled") ? '<option value="public">عامة — يراها الجميع وينضمون</option>' : '';
   var create='<div class="card"><div class="shead" style="margin-top:0"><h3>إنشاء مجموعة</h3></div>'
     +'<div class="field2"><label>اسم المجموعة</label><input id="gname" placeholder="مثال: نادي الكتاب"/></div>'
@@ -358,7 +390,7 @@ function scrGroups(){
     +'<button class="btn primary full" onclick="createGroup()">إنشاء المجموعة</button></div>';
   var pub="";
   if(flag("public_groups_enabled")){
-    var rows=M.pubGroups.length?M.pubGroups.map(function(g){var nmeName=esc(g.name).replace(/'/g,"");return '<div class="row"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm">'+esc(g.name)+'</div><div class="mut">'+esc(g.description||"")+' · '+g.members+' عضو</div></div>'+(g.joined?'<button class="chip secondary" onclick="openGroup(\''+g.conversation_id+'\',\''+nmeName+'\')">فتح</button>':'<button class="chip on" onclick="joinAndOpen(\''+g.id+'\',\''+nmeName+'\')">انضمام</button>')+'</div>'}).join(""):'<div class="empty">لا مجموعات عامة بعد. أنشئ واحدة!</div>';
+    var rows=M.pubGroups.length?M.pubGroups.map(function(g){var nmeName=esc(g.name).replace(/'/g,"");var act=g.joined?("openGroup('"+g.conversation_id+"','"+nmeName+"')"):("joinAndOpen('"+g.id+"','"+nmeName+"')");return '<div class="row" onclick="'+act+'"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')">'+esc(g.name)+'</div><div class="mut">'+esc(g.description||"")+' · '+g.members+' عضو</div></div>'+(g.joined?'<span class="chip secondary">فتح</span>':'<span class="chip on">انضمام</span>')+'</div>'}).join(""):'<div class="empty">لا مجموعات عامة بعد. أنشئ واحدة!</div>';
     pub='<div class="shead"><h3>مجموعات عامة</h3><span class="badge">'+M.pubGroups.length+'</span></div><div class="card">'+rows+'</div>';
   }
   return '<div class="shead" style="margin-top:0"><h3>مجموعاتي</h3><span class="badge">'+M.groups.length+'</span></div><div class="card">'+mine+'</div>'+create+pub;
