@@ -66,6 +66,9 @@ body.in .shell{display:block}body.in .center{display:none}
 .chip.secondary{background:rgba(39,184,174,.12);color:var(--tealdeep);border-color:rgba(39,184,174,.3)}
 .chip.ping{background:rgba(217,164,65,.16);border-color:rgba(217,164,65,.34);font-size:15px}
 .swatches{display:flex;gap:12px;flex-wrap:wrap}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.stat b{display:block;font-size:20px;color:var(--tealdeep)}.stat span{font-size:11px;color:var(--muted)}
 .swatch{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);cursor:pointer}
 .swatch.on{box-shadow:0 0 0 3px rgba(39,184,174,.45)}
 .thread{display:flex;flex-direction:column;gap:8px}
@@ -78,8 +81,8 @@ body.dark .pingmsg{color:#ffd98a}
 .composer input{border:0;outline:0;background:transparent;font-size:14px;padding:8px;min-width:0}
 .cb{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;background:var(--teal);color:#053a37;font-size:18px}
 .cb.ghost{background:rgba(217,164,65,.16);color:#7a560a}
-.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:8px;background:var(--surface);border-top:1px solid var(--line);z-index:40}
-.nav button{padding:9px 2px;border-radius:10px;color:var(--muted);font-size:11.5px;font-weight:700}
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:8px;background:var(--surface);border-top:1px solid var(--line);z-index:40}
+.nav button{padding:9px 1px;border-radius:10px;color:var(--muted);font-size:10.5px;font-weight:700}
 .nav button.on{color:var(--tealdeep);background:rgba(39,184,174,.12)}
 .spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:sp 1s linear infinite;margin:30px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -113,7 +116,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SB = createClient("https://dnocxanataaawgvdfaoj.supabase.co","sb_publishable_6bbK3b4jiarVU8iW-8z8ig_Ia5EzWCp",{auth:{persistSession:true,autoRefreshToken:true,storageKey:"pqn-session"}});
 const VAPID_PUBLIC="BPgIBMTrxjgsqJ7llZ2nuaGxWBPUwfg-zlZ0PlsOTerrRQODcZ64jRQ-A5pHQQ86T023cnUpVkv4QLgj4TBeJv4";
 const $ = function(id){return document.getElementById(id)};
-const M = { me:null, profile:null, friends:[], requests:[], qids:[], suggestions:[], owner:false, screen:"friends", conv:null, friend:null, msgs:[], chan:null, live:null, poll:null, booting:false, sig:"" };
+const M = { me:null, profile:null, friends:[], requests:[], qids:[], suggestions:[], owner:false, screen:"friends", conv:null, friend:null, msgs:[], chan:null, live:null, poll:null, booting:false, sig:"", groups:[], publicGroups:[], flags:{}, gpriv:"private", ov:null, recent:[] };
 const ACCENTS={teal:["#27B8AE","#57D7CF","#0f6e56"],blue:["#3B82F6","#7DA9FB","#1E3A8A"],amber:["#D9A441","#EAC374","#8A5B00"],rose:["#C85C5C","#E08A8A","#7E3030"],green:["#3FA37C","#74C7A0","#1F6E4E"],purple:["#8B5CF6","#B49BFA","#4C2E91"]};
 
 function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -156,6 +159,8 @@ async function enter(){
   var name=$("name").value.trim();
   if(!name){toast("اكتب اسمك أولًا");return}
   $("enterBtn").textContent="...جارٍ الدخول"; $("enterBtn").disabled=true;
+  try{ await loadFlags(); }catch(e){}
+  if(!flag("signups_enabled")){ $("enterBtn").textContent="ادخل مباشرة"; $("enterBtn").disabled=false; toast("التسجيل مغلق حاليًا من قبل المالك."); return; }
   var r=await SB.auth.signInAnonymously();
   if(r.error){
     $("enterBtn").textContent="ادخل مباشرة"; $("enterBtn").disabled=false;
@@ -179,6 +184,7 @@ async function boot(){
     var u=(await SB.auth.getUser()).data.user; M.me=u;
     M.profile=await loadProfile(u.id);
     try{ var ad=await SB.rpc("is_current_user_admin"); M.owner=(ad.data===true); }catch(e){ M.owner=false; }
+    try{ await loadFlags(); }catch(e){}
     await refreshAll(true);
     M.screen="friends"; render();
     startLive(); askNotify();
@@ -197,9 +203,14 @@ async function refreshAll(silent){
   var profs=[]; if(ids.length){ var p=await SB.from("profiles").select("id,display_name,username").in("id",ids); profs=p.data||[]; }
   M.requests=reqs.map(function(r){ r.profile=profs.find(function(p){return p.id===r.requester_id})||{display_name:"مستخدم"}; return r });
   var q=await SB.from("q_ids").select("*").eq("owner_id",M.me.id).order("created_at",{ascending:false}); M.qids=q.data||[];
-  var sig=M.friends.length+"/"+M.requests.length+"/"+M.qids.length; var changed=(sig!==M.sig); M.sig=sig;
-  if(!silent){ render(); toast("تم التحديث"); } else if(changed && (M.screen==="friends"||M.screen==="qid")){ render(); }
+  try{ var gr=await SB.rpc("my_groups"); M.groups=gr.data||[]; }catch(e){}
+  var sig=M.friends.length+"/"+M.requests.length+"/"+M.qids.length+"/"+(M.groups||[]).length; var changed=(sig!==M.sig); M.sig=sig;
+  if(!silent){ render(); toast("تم التحديث"); } else if(changed && (M.screen==="friends"||M.screen==="qid"||M.screen==="groups")){ render(); }
 }
+async function loadFlags(){ try{ var r=await SB.from("app_settings").select("*"); var o={}; (r.data||[]).forEach(function(x){o[x.key]=x.value}); M.flags=o; return o; }catch(e){ return {}; } }
+function flag(k){ return M.flags[k]!==false; }
+async function loadGroups(){ try{ var a=await SB.rpc("my_groups"); M.groups=a.data||[]; }catch(e){} try{ var b=await SB.rpc("list_public_groups"); M.publicGroups=b.data||[]; }catch(e){ M.publicGroups=[]; } }
+async function loadAdmin(){ try{ var o=await SB.rpc("admin_overview"); M.ov=o.data||null; }catch(e){} try{ var ru=await SB.rpc("admin_recent_users"); M.recent=ru.data||[]; }catch(e){} }
 async function loadSuggestions(){ try{ var r=await SB.from("suggestions").select("*").order("created_at",{ascending:false}); M.suggestions=r.data||[]; }catch(e){ M.suggestions=[]; } }
 
 function startLive(){
@@ -242,6 +253,7 @@ window.openChat=async function(fid){
 };
 async function leaveChat(){ if(M.chan){ await SB.removeChannel(M.chan); M.chan=null } }
 window.sendMsg=async function(){
+  if(!flag("messaging_enabled")){toast("الإرسال معطّل مؤقتًا");return}
   var i=$("mi"),v=(i.value||"").trim(); if(!v)return; i.value="";
   var r=await SB.from("messages").insert({conversation_id:M.conv,sender_id:M.me.id,body:v,kind:"text"});
   if(r.error)toast("تعذّر الإرسال: "+r.error.message);
@@ -259,18 +271,31 @@ window.saveProfile=async function(){
 };
 window.copyPin=function(){ try{navigator.clipboard.writeText(M.profile.pin);toast("نُسخ الـ PIN ✓")}catch(e){toast(M.profile.pin)} };
 window.sendSuggestion=async function(){ var t=($("sg")&&$("sg").value||"").trim(); if(!t){toast("اكتب اقتراحك أولًا");return} var r=await SB.from("suggestions").insert({author_id:M.me.id,author_name:M.profile.display_name,body:t}); if(r.error){toast(r.error.message);return} $("sg").value=""; toast("شكرًا! وصل اقتراحك ✓"); };
-window.ownerLoginGo=async function(){ var e=($("oe")&&$("oe").value||"").trim(), p=($("op")&&$("op").value||""); if(!e||!p){toast("أدخل البريد وكلمة المرور");return} var r=await SB.auth.signInWithPassword({email:e,password:p}); if(r.error){toast("تعذّر: "+r.error.message);return} M.me=null; await boot(); if(M.owner){ await loadSuggestions(); M.screen="settings"; render(); toast("مرحبًا أيها المالك"); } else { toast("هذا الحساب ليس مالكًا"); M.screen="settings"; render(); } };
+window.ownerLoginGo=async function(){ var e=($("oe")&&$("oe").value||"").trim(), p=($("op")&&$("op").value||""); if(!e||!p){toast("أدخل البريد وكلمة المرور");return} var r=await SB.auth.signInWithPassword({email:e,password:p}); if(r.error){toast("تعذّر: "+r.error.message);return} M.me=null; await boot(); if(M.owner){ await loadSuggestions(); await loadAdmin(); M.screen="settings"; render(); toast("مرحبًا أيها المالك"); } else { toast("هذا الحساب ليس مالكًا"); M.screen="settings"; render(); } };
 window.delSuggestion=async function(id){ await SB.from("suggestions").delete().eq("id",id); await loadSuggestions(); render(); };
-window.go=async function(s){ if(M.screen==="chat"&&s!=="chat") await leaveChat(); if(s==="settings"&&M.owner) await loadSuggestions(); M.screen=s; render() };
+window.createGroup=async function(){ if(!flag("groups_enabled")){toast("المجموعات معطّلة حاليًا");return} var nm=($("gname")&&$("gname").value||"").trim(); if(!nm){toast("اكتب اسم المجموعة");return} var pv=M.gpriv||"private"; if(pv==="public"&&!flag("public_groups_enabled")){toast("المجموعات العامة معطّلة");return} var r=await SB.rpc("create_group",{p_name:nm,p_privacy:pv,p_description:""}); if(r.error){toast(r.error.message);return} if($("gname"))$("gname").value=""; toast("تم إنشاء المجموعة ✓"); await loadGroups(); render(); };
+window.setGPriv=function(v){ M.gpriv=v; var a=$("gp_priv"),b=$("gp_pub"); if(a&&b){ a.classList.toggle("on",v==="private"); b.classList.toggle("on",v==="public"); } };
+window.joinGroup=async function(gid){ var r=await SB.rpc("join_group",{p_group:gid}); if(r.error){toast(r.error.message);return} toast("انضممت ✓"); await loadGroups(); render(); };
+window.joinByCode=async function(){ var c=($("gcode")&&$("gcode").value||"").trim(); if(!c){toast("الصق كود المجموعة");return} var r=await SB.rpc("join_group",{p_group:c}); if(r.error){toast("كود غير صالح");return} if($("gcode"))$("gcode").value=""; toast("انضممت ✓"); await loadGroups(); render(); };
+window.copyText=function(t){ try{navigator.clipboard.writeText(t);toast("نُسخ ✓")}catch(e){toast(t)} };
+window.openGroup=async function(conv){
+  var g=(M.groups||[]).find(function(x){return x.conversation_id===conv})||{}; var name=g.name||"مجموعة";
+  M.conv=conv; M.friend={display_name:name,group:true};
+  var ms=await SB.from("messages").select("*").eq("conversation_id",conv).order("created_at"); M.msgs=ms.data||[];
+  await leaveChat();
+  M.chan=SB.channel("conv-"+conv).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"conversation_id=eq."+conv},function(p){ M.msgs.push(p.new); if(p.new.sender_id!==M.me.id){ if(p.new.kind==="ping") buzz(); if(document.hidden) notify(name, p.new.kind==="ping"?"📳 نبّهك":(p.new.body||"")); } if(M.screen==="chat") thread(); }).subscribe();
+  M.screen="chat"; render();
+};
+window.go=async function(s){ if(M.screen==="chat"&&s!=="chat") await leaveChat(); if(s==="settings"&&M.owner){ await loadSuggestions(); await loadAdmin(); await loadFlags(); } if(s==="groups") await loadGroups(); M.screen=s; render() };
 
-var NAV=[["friends","الرئيسية"],["qid","Q-ID"],["profile","الملف"],["settings","إعدادات"]];
+var NAV=[["friends","الرئيسية"],["groups","مجموعات"],["qid","Q-ID"],["profile","الملف"],["settings","إعدادات"]];
 function render(){
-  var titles={friends:"الرئيسية",chat:M.friend?M.friend.display_name:"محادثة",qid:"Q-ID",profile:"الملف الشخصي",settings:"الإعدادات"};
+  var titles={friends:"الرئيسية",chat:M.friend?M.friend.display_name:"محادثة",qid:"Q-ID",profile:"الملف الشخصي",settings:"الإعدادات",groups:"المجموعات"};
   $("ttl").textContent=titles[M.screen]||"PQN";
-  $("sub").textContent=M.screen==="chat"?"محادثة خاصة وحيّة":"دائرتك الخاصة";
-  var active=M.screen==="chat"?"friends":M.screen;
+  $("sub").textContent=M.screen==="chat"?(M.friend&&M.friend.group?"محادثة مجموعة":"محادثة خاصة وحيّة"):"دائرتك الخاصة";
+  var active=M.screen==="chat"?(M.friend&&M.friend.group?"groups":"friends"):M.screen;
   $("nav").innerHTML=NAV.map(function(n){return '<button class="'+(active===n[0]?"on":"")+'" onclick="go(\''+n[0]+'\')">'+n[1]+'</button>'}).join("");
-  var map={friends:scrFriends,chat:scrChat,qid:scrQid,profile:scrProfile,settings:scrSettings};
+  var map={friends:scrFriends,chat:scrChat,qid:scrQid,profile:scrProfile,settings:scrSettings,groups:scrGroups};
   $("screen").innerHTML=(map[M.screen]||scrFriends)();
   if(M.screen==="chat") thread();
 }
@@ -284,7 +309,8 @@ function scrFriends(){
     +'<div class="shead"><h3>أصدقائي</h3><span class="badge">'+M.friends.length+'</span></div><div class="card">'+fr+'</div>';
 }
 function scrChat(){
-  return '<button class="chip" onclick="go(\'friends\')" style="margin-bottom:10px">→ رجوع</button>'
+  var back=(M.friend&&M.friend.group)?"groups":"friends";
+  return '<button class="chip" onclick="go(\''+back+'\')" style="margin-bottom:10px">→ رجوع</button>'
     +'<div class="strip">🔒 محادثة فورية حقيقية. اضغط 📳 لإرسال تنبيه صامت.</div>'
     +'<div class="thread" id="thread"></div>'
     +'<div class="composer"><button class="cb ghost" onclick="pingInChat()" title="تنبيه">📳</button><input id="mi" placeholder="اكتب رسالة..." onkeydown="if(event.key===\'Enter\')sendMsg()"/><button class="cb" onclick="sendMsg()">➤</button></div>';
@@ -312,6 +338,18 @@ function scrProfile(){
     +'<div class="field2"><label>الحالة</label><input id="ps" value="'+esc(p.status||"")+'"/></div>'
     +'<button class="btn primary full" onclick="saveProfile()">حفظ</button></div>';
 }
+function scrGroups(){
+  if(!flag("groups_enabled")) return '<div class="empty">المجموعات معطّلة حاليًا من قبل المالك.</div>';
+  var mine=(M.groups||[]).map(function(g){ var code=(g.privacy!=="public")?'<button class="chip" onclick="copyText(\''+g.id+'\')">كود</button>':''; return '<div class="row"><div class="av">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm">'+esc(g.name)+'</div><div class="mut">'+(g.privacy==="public"?"عامة 🌍":"خاصة 🔒")+' · '+g.members+' عضو</div></div><div class="acts">'+code+'<button class="chip secondary" onclick="openGroup(\''+g.conversation_id+'\')">دخول</button></div></div>'}).join("")||'<div class="empty">لا مجموعات بعد. أنشئ واحدة بالأعلى.</div>';
+  var pub=(M.publicGroups||[]).map(function(g){ return '<div class="row"><div class="av">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm">'+esc(g.name)+'</div><div class="mut">'+g.members+' عضو'+(g.description?' · '+esc(g.description):'')+'</div></div>'+(g.joined?'<span class="badge">عضو</span>':'<button class="chip on" onclick="joinGroup(\''+g.id+'\')">انضمام</button>')+'</div>'}).join("")||'<div class="empty">لا مجموعات عامة بعد</div>';
+  var create='<div class="card"><div class="field2"><label>اسم المجموعة</label><input id="gname" placeholder="مثال: فريق العمل"/></div>'
+    +'<div class="mut" style="margin-bottom:8px">النوع</div><div class="acts" style="margin-bottom:12px"><button class="chip '+(M.gpriv!=="public"?"on":"")+'" id="gp_priv" onclick="setGPriv(\'private\')">خاصة 🔒</button><button class="chip '+(M.gpriv==="public"?"on":"")+'" id="gp_pub" onclick="setGPriv(\'public\')">عامة 🌍</button></div>'
+    +'<button class="btn primary full" onclick="createGroup()">إنشاء مجموعة</button></div>';
+  var byCode='<div class="card"><div class="field2"><label>انضمام بكود مجموعة خاصة</label><input id="gcode" placeholder="الصق كود المجموعة"/></div><button class="btn secondary full" onclick="joinByCode()">انضمام</button></div>';
+  var mineSec='<div class="shead"><h3>مجموعاتي</h3><span class="badge">'+(M.groups||[]).length+'</span></div><div class="card">'+mine+'</div>';
+  var pubSec=flag("public_groups_enabled")?'<div class="shead"><h3>مجموعات عامة 🌍</h3></div><div class="card">'+pub+'</div>':'';
+  return '<div class="strip">👥 أنشئ مجموعة عامة يكتشفها الجميع، أو خاصة تشارك كودها مع من تختار.</div>'+create+byCode+mineSec+pubSec;
+}
 function scrSettings(){
   var dark=localStorage.getItem("pqn_dark")==="1"; var a=localStorage.getItem("pqn_accent")||"teal";
   var sw=Object.keys(ACCENTS).map(function(k){return '<button class="swatch'+(a===k?" on":"")+'" style="background:'+ACCENTS[k][0]+'" onclick="setAccent(\''+k+'\')"></button>'}).join("");
@@ -329,9 +367,20 @@ function ownerLogin(){
     +'<div class="field2"><input id="op" type="password" placeholder="كلمة المرور"/></div>'
     +'<button class="btn secondary full" onclick="ownerLoginGo()">دخول</button></div>';
 }
+function stat(l,v){ return '<div class="stat"><b>'+(v==null?"—":v)+'</b><span>'+l+'</span></div>'; }
+window.setFlag=async function(k,v){ var r=await SB.rpc("admin_set_flag",{p_key:k,p_value:v}); if(r.error){toast(r.error.message);return} await loadFlags(); render(); toast("تم التحديث"); };
 function ownerPanel(){
-  var rows=(M.suggestions||[]).map(function(s){return '<div class="row"><div class="grow"><div class="nm">'+esc(s.author_name||"مجهول")+'</div><div class="mut" style="white-space:pre-wrap">'+esc(s.body)+'</div><div class="mut" style="font-size:10px;margin-top:4px">'+tm(s.created_at)+'</div></div><button class="chip" onclick="delSuggestion(\''+s.id+'\')">حذف</button></div>'}).join("")||'<div class="empty">لا مقترحات بعد</div>';
-  return '<div class="card"><div class="shead" style="margin-top:0"><h3>📋 المقترحات (للمالك)</h3><span class="badge">'+((M.suggestions||[]).length)+'</span></div>'+rows+'</div>';
+  var ov=M.ov||{};
+  var stats='<div class="card"><div class="shead" style="margin-top:0"><h3>📊 لوحة المالك</h3></div><div class="statgrid">'
+    +stat("المستخدمون",ov.users)+stat("جدد اليوم",ov.new_today)+stat("الرسائل",ov.messages)+stat("المجموعات",ov.groups)+stat("الصداقات",ov.friends)+stat("المقترحات",ov.suggestions)+'</div></div>';
+  var flags=[["signups_enabled","تسجيل أعضاء جدد"],["messaging_enabled","إرسال الرسائل"],["groups_enabled","المجموعات"],["public_groups_enabled","المجموعات العامة"]];
+  var ft=flags.map(function(f){var on=M.flags[f[0]]!==false;return '<div class="row"><div class="grow"><div class="nm">'+f[1]+'</div></div><button class="chip '+(on?"on":"")+'" onclick="setFlag(\''+f[0]+'\','+(!on)+')">'+(on?"مفعّل ✓":"مغلق")+'</button></div>'}).join("");
+  var control='<div class="card"><div class="shead" style="margin-top:0"><h3>🎛️ التحكّم (تفعيل / غلق)</h3></div>'+ft+'</div>';
+  var users=(M.recent||[]).map(function(u){return '<div class="row"><div class="av">'+esc(ini(u.display_name))+'</div><div class="grow"><div class="nm">'+esc(u.display_name)+'</div><div class="mut">'+tm(u.created_at)+'</div></div></div>'}).join("")||'<div class="empty">لا أحد بعد</div>';
+  var ulist='<div class="card"><div class="shead" style="margin-top:0"><h3>👤 أحدث الأعضاء</h3></div>'+users+'</div>';
+  var sug=(M.suggestions||[]).map(function(s){return '<div class="row"><div class="grow"><div class="nm">'+esc(s.author_name||"مجهول")+'</div><div class="mut" style="white-space:pre-wrap">'+esc(s.body)+'</div><div class="mut" style="font-size:10px;margin-top:4px">'+tm(s.created_at)+'</div></div><button class="chip" onclick="delSuggestion(\''+s.id+'\')">حذف</button></div>'}).join("")||'<div class="empty">لا مقترحات بعد</div>';
+  var sgc='<div class="card"><div class="shead" style="margin-top:0"><h3>📋 المقترحات</h3><span class="badge">'+((M.suggestions||[]).length)+'</span></div>'+sug+'</div>';
+  return stats+control+ulist+sgc;
 }
 </script>
 </body>
