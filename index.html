@@ -99,6 +99,9 @@ body.recording .cb.rec{background:var(--rose);color:#fff;animation:pulse 1.1s in
 body.dark .voicebtn{color:#ffd98a}
 .chatwrap{display:flex;flex-direction:column;height:100%}
 .chathead{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex:0 0 auto}
+.idbtn{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:var(--surface2);border:1px solid var(--line);padding:5px 9px;border-radius:12px;color:var(--text)}
+.idbtn:active{transform:scale(.98)}
+.idbtn .av{flex:0 0 auto}
 .chatwrap .thread{flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:6px}
 .chatwrap .composer{flex:0 0 auto;margin:6px 0 8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .cb{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;background:var(--teal);color:#053a37;font-size:18px}
@@ -314,7 +317,7 @@ function autoTick(){
 window.addFriend=async function(){ var h=$("handle").value.trim(); if(!h){toast("أدخل اسم مستخدم أو PIN");return} var r=await SB.rpc("find_profile_by_handle",{handle:h}); if(r.error){toast("خطأ: "+r.error.message);return} var f=Array.isArray(r.data)?r.data[0]:r.data; if(!f){toast("لم يُعثر على مستخدم مطابق");return} if(f.id===M.me.id){toast("لا يمكنك إضافة نفسك");return} var ins=await SB.from("friend_requests").insert({requester_id:M.me.id,recipient_id:f.id,source:h[0]==="@"?"username":"pin"}); if(ins.error){toast(ins.error.message.indexOf("duplicate")>=0?"الطلب مُرسَل مسبقًا":ins.error.message);return} $("handle").value="";toast("أُرسل طلب الصداقة ✓"); };
 window.acceptReq=async function(id){ var r=await SB.rpc("accept_friend_request",{req_id:id}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("تم القبول ✓") };
 window.declineReq=async function(id){ await SB.from("friend_requests").update({status:"declined"}).eq("id",id); await refreshAll(true); render(); toast("تم الرفض") };
-window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.id===fid}); if(!fr)return; if(M.unread[fid]){ M.unread[fid]=0; } var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} await openConv(r.data, fr.display_name, false); };
+window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.id===fid}); if(!fr)return; if(M.unread[fid]){ M.unread[fid]=0; } M.friendId=fid; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} await openConv(r.data, fr.display_name, false); };
 window.openGroup=async function(conv,name){ await openConv(conv, name, true); };
 window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; };
 window.closeModal=function(){ var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
@@ -349,7 +352,7 @@ window.groupDetails=function(conv){ var g=M.groups.find(function(x){return x.con
     +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
   openModal(html); };
 async function openConv(conv, name, isGroup){
-  M.conv=conv; M.friend={display_name:name}; M.isGroup=isGroup; M.members={};
+  M.conv=conv; M.friend={display_name:name}; M.isGroup=isGroup; M.members={}; if(isGroup) M.friendId=null;
   if(isGroup){ try{ var mm=await SB.from("conversation_members").select("user_id").eq("conversation_id",conv); var ids=(mm.data||[]).map(function(x){return x.user_id}); if(ids.length){ var pr=await SB.from("profiles").select("id,display_name").in("id",ids); (pr.data||[]).forEach(function(p){M.members[p.id]=p.display_name}); } }catch(e){} }
   var ms=await SB.from("messages").select("*").eq("conversation_id",conv).order("created_at"); M.msgs=ms.data||[];
   await leaveChat();
@@ -430,8 +433,12 @@ function scrGroups(){
   return backBtn()+'<div class="addbar"><input id="gcode" placeholder="انضم بكود مجموعة: G-XXXXX" onkeydown="if(event.key===\'Enter\')joinByCode()"/><button class="cb" onclick="joinByCode()" title="انضمام">↳</button></div><div class="shead" style="margin-top:0"><h3>مجموعاتي</h3><span class="badge">'+M.groups.length+'</span></div><div class="card">'+mine+'</div>'+create+pub;
 }
 function scrChat(){
+  var det = M.isGroup ? ("groupDetails('"+M.conv+"')") : (M.friendId?("friendDetails('"+M.friendId+"')"):"");
+  var who = M.isGroup ? null : M.friends.find(function(f){return f.id===M.friendId});
+  var headAv = M.isGroup ? ('<div class="av g" style="width:36px;height:36px;font-size:15px">'+esc(ini(M.friend.display_name))+'</div>') : ('<div class="av" style="width:36px;height:36px;font-size:15px">'+avatarInner(who||M.friend)+'</div>');
   return '<div class="chatwrap">'
-    +'<div class="chathead"><button class="chip" onclick="go(\'friends\')">→ رجوع</button><div class="strip" style="margin:0;flex:1">🔒 '+(M.isGroup?"مجموعة":"محادثة خاصة")+' · 📳 تنبيه · 🎤 صوت يُسمع مرة واحدة</div></div>'
+    +'<div class="chathead"><button class="chip" onclick="go(\'friends\')">→</button>'
+      +'<button class="idbtn"'+(det?(' onclick="'+det+'"'):'')+'>'+headAv+'<div style="text-align:start;min-width:0"><div class="nm" style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(M.friend.display_name)+'</div><div class="mut" style="font-size:10px">اضغط لعرض التفاصيل ⓘ</div></div></button></div>'
     +'<div class="thread" id="thread"></div>'
     +'<div class="emoji" id="emoji">'+EMO.map(function(e){return '<button onclick="addEmoji(\''+e+'\')">'+e+'</button>'}).join("")+'</div>'
     +'<div class="composer">'
