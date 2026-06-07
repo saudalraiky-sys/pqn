@@ -264,7 +264,8 @@ async function refreshAll(silent){
   M.requests=reqs.map(function(r){ r.profile=profs.find(function(p){return p.id===r.requester_id})||{display_name:"مستخدم"}; return r });
   var q=await SB.from("q_ids").select("*").eq("owner_id",M.me.id).order("created_at",{ascending:false}); M.qids=q.data||[];
   var sig=M.friends.length+"/"+M.requests.length+"/"+M.qids.length; var changed=(sig!==M.sig); M.sig=sig;
-  if(!silent){ render(); toast("تم التحديث"); } else if(changed && (M.screen==="friends"||M.screen==="qid")){ render(); }
+  if(!silent){ render(); toast("تم التحديث"); }
+  else if(M.screen==="friends"||M.screen==="qid"){ var h=$("handle"); if(h && document.activeElement===h) return; var hv=h?h.value:null; render(); var h2=$("handle"); if(hv && h2) h2.value=hv; }
 }
 async function loadGroups(){ try{ var g=await SB.rpc("my_groups"); M.groups=g.data||[]; if(flag("public_groups_enabled")){ var pg=await SB.rpc("list_public_groups"); M.pubGroups=pg.data||[]; } else M.pubGroups=[]; }catch(e){ M.groups=[];M.pubGroups=[]; } }
 async function loadOwnerData(){ try{ var o=await SB.rpc("admin_overview"); M.stats=o.data||null; }catch(e){M.stats=null} try{ var u=await SB.rpc("admin_recent_users"); M.recent=u.data||[]; }catch(e){M.recent=[]} try{ var s=await SB.from("suggestions").select("*").order("created_at",{ascending:false}); M.suggestions=s.data||[]; }catch(e){M.suggestions=[]} }
@@ -276,8 +277,13 @@ function startLive(){
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"requester_id=eq."+M.me.id},function(){ refreshAll(true); })
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){ var m=p.new; if(m.sender_id===M.me.id) return; if(M.screen==="chat"&&m.conversation_id===M.conv) return; var fr=M.friends.find(function(x){return x.id===m.sender_id}); var who=(fr&&fr.display_name)||"رسالة"; if(m.kind==="ping"){ pingAlert(); inAppNote("📳 "+who, "نبّهك بتنبيه", m.conversation_id, who); notify(who,"📳 نبّهك"); } else { buzz([45]); playBlip(); var prev=m.kind==="image"?"📷 صورة":(m.kind==="voice"?"🎤 رسالة صوتية (مرة واحدة)":(m.body||"رسالة جديدة")); inAppNote("📨 "+who, prev, m.conversation_id, who); notify(who, prev); } })
     .subscribe();
-  if(!M.poll) M.poll=setInterval(function(){ if(M.screen!=="chat") refreshAll(true); },12000);
+  if(!M.poll) M.poll=setInterval(autoTick, 7000);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden && M.me) autoTick(); });
 }
+function autoTick(){
+  if(!M.me || M.screen==="chat") return;
+  refreshAll(true);
+  if(M.screen==="groups"){ loadGroups().then(function(){ var a=document.activeElement; if(a&&(a.id==="gname"||a.id==="gdesc"||a.id==="gpriv")) return; render(); }); }
 
 window.addFriend=async function(){ var h=$("handle").value.trim(); if(!h){toast("أدخل اسم مستخدم أو PIN");return} var r=await SB.rpc("find_profile_by_handle",{handle:h}); if(r.error){toast("خطأ: "+r.error.message);return} var f=Array.isArray(r.data)?r.data[0]:r.data; if(!f){toast("لم يُعثر على مستخدم مطابق");return} if(f.id===M.me.id){toast("لا يمكنك إضافة نفسك");return} var ins=await SB.from("friend_requests").insert({requester_id:M.me.id,recipient_id:f.id,source:h[0]==="@"?"username":"pin"}); if(ins.error){toast(ins.error.message.indexOf("duplicate")>=0?"الطلب مُرسَل مسبقًا":ins.error.message);return} $("handle").value="";toast("أُرسل طلب الصداقة ✓"); };
 window.acceptReq=async function(id){ var r=await SB.rpc("accept_friend_request",{req_id:id}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("تم القبول ✓") };
