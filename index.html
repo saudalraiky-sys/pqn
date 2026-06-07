@@ -138,6 +138,15 @@ function applyTheme(){var dark=localStorage.getItem("pqn_dark")==="1";document.b
 window.setDark=function(v){localStorage.setItem("pqn_dark",v?"1":"0");applyTheme();render()};
 window.setAccent=function(a){localStorage.setItem("pqn_accent",a);applyTheme();render();toast("تم تغيير اللون")};
 applyTheme();
+var __pwaPrompt=null;
+window.addEventListener("beforeinstallprompt",function(e){ e.preventDefault(); __pwaPrompt=e; });
+window.installApp=async function(){
+  if(__pwaPrompt){ __pwaPrompt.prompt(); var c=null; try{c=await __pwaPrompt.userChoice}catch(e){} __pwaPrompt=null; toast((c&&c.outcome==="accepted")?"تم التثبيت ✓":"يمكنك التثبيت لاحقًا"); return; }
+  if(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches){ toast("التطبيق مُثبَّت بالفعل ✓"); return; }
+  var ua=navigator.userAgent||"";
+  if(/iphone|ipad|ipod/i.test(ua)) toast("على آيفون: اضغط زر المشاركة ⬆️ في أسفل سفاري ثم «إضافة إلى الشاشة الرئيسية»");
+  else toast("افتح قائمة المتصفّح (⋮) ثم «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»");
+};
 
 function b64ToU8(s){var pad="=".repeat((4-s.length%4)%4);var b=(s+pad).replace(/-/g,"+").replace(/_/g,"/");var raw=atob(b);var arr=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr}
 async function registerPush(){try{if(!("serviceWorker" in navigator)||!("PushManager" in window))return;if(!("Notification" in window)||Notification.permission!=="granted")return;var reg=await navigator.serviceWorker.register("sw.js");await navigator.serviceWorker.ready;var sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});var j=sub.toJSON();if(M.me)await SB.from("push_subscriptions").insert({user_id:M.me.id,endpoint:j.endpoint,data:j})}catch(e){}}
@@ -224,7 +233,7 @@ window.createGroup=async function(){ if(!flag("groups_enabled")){toast("المج
 window.joinAndOpen=async function(gid,name){ var r=await SB.rpc("join_group",{p_group:gid}); if(r.error){toast(r.error.message);return} await loadGroups(); await openConv(r.data,name,true); };
 window.makeQid=async function(){ var code=genCode(); var r=await SB.from("q_ids").insert({owner_id:M.me.id,code:code,purpose:"add_friend",max_uses:1}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("Q-ID: "+code); };
 window.killQid=async function(id){ await SB.from("q_ids").update({revoked:true}).eq("id",id); await refreshAll(true); render(); toast("أُلغي Q-ID") };
-window.saveProfile=async function(){ var dn=$("pn").value.trim(), st=$("ps").value.trim(); if(!dn){toast("الاسم مطلوب");return} var r=await SB.from("profiles").update({display_name:dn,status:st}).eq("id",M.me.id); if(r.error){toast(r.error.message);return} M.profile.display_name=dn; M.profile.status=st; render(); toast("تم الحفظ ✓"); };
+window.saveProfile=async function(){ var dn=($("pn")&&$("pn").value||"").trim(), st=($("ps")&&$("ps").value||"").trim(); if(!dn){dn=M.profile.display_name||"مستخدم";} var r=await SB.from("profiles").update({display_name:dn,status:st}).eq("id",M.me.id).select().maybeSingle(); if(r.error){toast("تعذّر الحفظ: "+r.error.message);return} if(r.data){M.profile=r.data;}else{M.profile.display_name=dn;M.profile.status=st;} render(); toast("تم حفظ الملف ✓"); };
 window.copyPin=function(){ try{navigator.clipboard.writeText(M.profile.pin);toast("نُسخ الـ PIN ✓")}catch(e){toast(M.profile.pin)} };
 window.sendSuggestion=async function(){ var t=($("sg")&&$("sg").value||"").trim(); if(!t){toast("اكتب اقتراحك أولًا");return} var r=await SB.from("suggestions").insert({author_id:M.me.id,author_name:M.profile.display_name,body:t}); if(r.error){toast(r.error.message);return} $("sg").value=""; toast("شكرًا! وصل اقتراحك ✓"); };
 window.ownerLoginGo=async function(){ var e=($("oe")&&$("oe").value||"").trim(), p=($("op")&&$("op").value||""); if(!e||!p){toast("أدخل البريد وكلمة المرور");return} var r=await SB.auth.signInWithPassword({email:e,password:p}); if(r.error){toast("تعذّر: "+r.error.message);return} M.me=null; await boot(); if(M.owner){ await loadOwnerData(); toast("مرحبًا أيها المالك"); } else { toast("هذا الحساب ليس مالكًا"); } M.screen="settings"; render(); };
@@ -297,7 +306,8 @@ function scrProfile(){
 function scrSettings(){
   var dark=localStorage.getItem("pqn_dark")==="1"; var a=localStorage.getItem("pqn_accent")||"teal";
   var sw=Object.keys(ACCENTS).map(function(k){return '<button class="swatch'+(a===k?" on":"")+'" style="background:'+ACCENTS[k][0]+'" onclick="setAccent(\''+k+'\')"></button>'}).join("");
-  return '<div class="card"><div class="shead" style="margin-top:0"><h3>المظهر</h3></div><div class="mut" style="margin-bottom:8px">الوضع</div><div class="acts" style="margin-bottom:16px"><button class="chip '+(!dark?"on":"")+'" onclick="setDark(false)">فاتح ☀️</button><button class="chip '+(dark?"on":"")+'" onclick="setDark(true)">داكن 🌙</button></div><div class="mut" style="margin-bottom:10px">اللون</div><div class="swatches">'+sw+'</div></div>'
+  return '<div class="card" style="text-align:center"><div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:10px"><span class="qmark" style="width:38px;height:38px"><i></i><i></i></span><div style="font-weight:900;font-size:18px">ثبّت PQN</div></div><div class="mut" style="margin-bottom:12px;line-height:1.7">أضِف التطبيق إلى شاشتك الرئيسية ليفتح كتطبيق مستقلّ بأيقونته الخاصة.</div><button class="btn primary full" onclick="installApp()">📲 تثبيت على الشاشة الرئيسية</button></div>'
+    +'<div class="card"><div class="shead" style="margin-top:0"><h3>المظهر</h3></div><div class="mut" style="margin-bottom:8px">الوضع</div><div class="acts" style="margin-bottom:16px"><button class="chip '+(!dark?"on":"")+'" onclick="setDark(false)">فاتح ☀️</button><button class="chip '+(dark?"on":"")+'" onclick="setDark(true)">داكن 🌙</button></div><div class="mut" style="margin-bottom:10px">اللون</div><div class="swatches">'+sw+'</div></div>'
     +'<div class="card"><div class="shead" style="margin-top:0"><h3>الإشعارات</h3></div><div class="mut" style="margin-bottom:12px;line-height:1.7">فعّل الإشعارات لتصلك التنبيهات حتى عند إغلاق التطبيق.<br/>على آيفون: أضِف التطبيق للشاشة الرئيسية أولًا.</div><button class="btn secondary full" onclick="enableNotifs()">تفعيل الإشعارات على هذا الجهاز</button></div>'
     +'<div class="card"><div class="shead" style="margin-top:0"><h3>أرسل اقتراحًا 💡</h3></div><div class="field2"><textarea id="sg" placeholder="اكتب اقتراحك لتحسين التطبيق..."></textarea></div><button class="btn primary full" onclick="sendSuggestion()">إرسال الاقتراح</button></div>'
     +(M.owner?ownerPanel():ownerLogin());
