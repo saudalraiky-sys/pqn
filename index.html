@@ -349,11 +349,17 @@ window.sendSuggestion=async function(){ var t=($("sg")&&$("sg").value||"").trim(
 window.ownerLoginGo=async function(){ var e=($("oe")&&$("oe").value||"").trim(), p=($("op")&&$("op").value||""); if(!e||!p){toast("أدخل البريد وكلمة المرور");return} var r=await SB.auth.signInWithPassword({email:e,password:p}); if(r.error){toast("تعذّر: "+r.error.message);return} M.me=null; await boot(); if(M.owner){ await loadOwnerData(); toast("مرحبًا أيها المالك"); } else { toast("هذا الحساب ليس مالكًا"); } M.screen="settings"; render(); };
 window.delSuggestion=async function(id){ await SB.from("suggestions").delete().eq("id",id); await loadOwnerData(); render(); };
 window.toggleFlag=async function(k){ var nv=!flag(k); var r=await SB.rpc("admin_set_flag",{p_key:k,p_value:nv}); if(r.error){toast(r.error.message);return} await loadFlags(); render(); toast("تم التحديث"); };
-window.go=async function(s){ if(M.screen==="chat"&&s!=="chat") await leaveChat(); if(s==="groups") await loadGroups(); if(s==="settings"&&M.owner) await loadOwnerData(); M.screen=s; render() };
+window.go=async function(s){ if(M.screen!==s && M.screen!=="chat") M.prev=M.screen; if(M.screen==="chat"&&s!=="chat") await leaveChat(); if(s==="groups") await loadGroups(); if(s==="settings"&&M.owner) await loadOwnerData(); M.screen=s; render() };
+window.goBack=function(){ if($("modal")&&$("modal").classList.contains("show")){ closeModal(); return; } if(M.screen==="chat"){ go("friends"); return; } go(M.prev||"friends"); };
+(function(){ var sx=0,sy=0,st=0,active=false;
+  document.addEventListener("touchstart",function(e){ if(!document.body.classList.contains("in"))return; var t=e.touches[0]; var w=window.innerWidth; if(t.clientX<38||t.clientX>w-38){ sx=t.clientX;sy=t.clientY;st=Date.now();active=true; } else active=false; },{passive:true});
+  document.addEventListener("touchend",function(e){ if(!active)return; active=false; var t=e.changedTouches[0]; var dx=t.clientX-sx,dy=t.clientY-sy; if(Date.now()-st<650 && Math.abs(dx)>70 && Math.abs(dy)<55){ if($("modal")&&$("modal").classList.contains("show")){ closeModal(); return; } if(M.screen!=="friends") goBack(); } },{passive:true});
+})();
 window.refreshNow=async function(){ await refreshAll(false); };
 function greetWord(){ var h=new Date().getHours(); return h<12?"صباح الخير":(h<17?"نهارك سعيد":"مساء الخير"); }
 
 function navItems(){ var n=[["friends","الرئيسية"]]; if(flag("groups_enabled")) n.push(["groups","مجموعات"]); n.push(["qid","Q-ID"]); n.push(["profile","الملف"]); n.push(["settings","إعدادات"]); return n; }
+function backBtn(){ return '<button class="chip" onclick="goBack()" style="margin-bottom:12px">→ رجوع</button>'; }
 function render(){
   document.body.classList.toggle("chatting", M.screen==="chat");
   var titles={friends:"الرئيسية",groups:"المجموعات",chat:M.friend?M.friend.display_name:"محادثة",qid:"Q-ID",profile:"الملف",settings:"الإعدادات"};
@@ -393,7 +399,7 @@ function scrGroups(){
     var rows=M.pubGroups.length?M.pubGroups.map(function(g){var nmeName=esc(g.name).replace(/'/g,"");var act=g.joined?("openGroup('"+g.conversation_id+"','"+nmeName+"')"):("joinAndOpen('"+g.id+"','"+nmeName+"')");return '<div class="row" onclick="'+act+'"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')">'+esc(g.name)+'</div><div class="mut">'+esc(g.description||"")+' · '+g.members+' عضو</div></div>'+(g.joined?'<span class="chip secondary">فتح</span>':'<span class="chip on">انضمام</span>')+'</div>'}).join(""):'<div class="empty">لا مجموعات عامة بعد. أنشئ واحدة!</div>';
     pub='<div class="shead"><h3>مجموعات عامة</h3><span class="badge">'+M.pubGroups.length+'</span></div><div class="card">'+rows+'</div>';
   }
-  return '<div class="shead" style="margin-top:0"><h3>مجموعاتي</h3><span class="badge">'+M.groups.length+'</span></div><div class="card">'+mine+'</div>'+create+pub;
+  return backBtn()+'<div class="shead" style="margin-top:0"><h3>مجموعاتي</h3><span class="badge">'+M.groups.length+'</span></div><div class="card">'+mine+'</div>'+create+pub;
 }
 function scrChat(){
   return '<div class="chatwrap">'
@@ -425,17 +431,17 @@ function thread(){
 }
 function scrQid(){
   var list=M.qids.filter(function(q){return !q.revoked}).map(function(q){return '<div class="row"><div class="av">🪪</div><div class="grow"><div class="nm" style="direction:ltr;cursor:pointer" onclick="copyText(\''+esc(q.code)+'\')">'+esc(q.code)+'</div><div class="mut">اضغط للنسخ · صالح 30 يومًا</div></div><button class="chip" onclick="killQid(\''+q.id+'\')">إلغاء</button></div>'}).join("")||'<div class="empty">لا هويات نشطة. أنشئ واحدة وشاركها.</div>';
-  return '<div class="strip">🪪 أنشئ كودًا تشاركه مع من تريد إضافته. يكتبه في خانة «إضافة صديق» في صفحته الرئيسية فيصلك طلب صداقة. بديل أنيق عن مشاركة رقمك الدائم.</div><button class="btn primary full" onclick="makeQid()" style="margin-bottom:12px">إنشاء Q-ID جديد</button><div class="card">'+list+'</div>';
+  return backBtn()+'<div class="strip">🪪 أنشئ كودًا تشاركه مع من تريد إضافته. يكتبه في خانة «إضافة صديق» في صفحته الرئيسية فيصلك طلب صداقة. بديل أنيق عن مشاركة رقمك الدائم.</div><button class="btn primary full" onclick="makeQid()" style="margin-bottom:12px">إنشاء Q-ID جديد</button><div class="card">'+list+'</div>';
 }
 function scrProfile(){
   var p=M.profile;
-  return '<div class="card" style="text-align:center"><div class="av" style="width:82px;height:82px;font-size:32px;margin:0 auto 12px">'+esc(ini(p.display_name))+'</div><div class="nm" style="font-size:19px">'+esc(p.display_name)+'</div><div class="mut" style="direction:ltr;cursor:pointer;color:var(--tealdeep);font-weight:700" onclick="copyText(\'@'+esc(p.username||"")+'\')">@'+esc(p.username||"")+'</div><div class="mut" style="margin-top:4px">'+esc(p.status||"")+'</div><div style="margin-top:12px"><span class="pin" style="background:var(--navy);color:#eafaf8" onclick="copyPin()">'+esc(p.pin)+'</span></div></div>'
+  return backBtn()+'<div class="card" style="text-align:center"><div class="av" style="width:82px;height:82px;font-size:32px;margin:0 auto 12px">'+esc(ini(p.display_name))+'</div><div class="nm" style="font-size:19px">'+esc(p.display_name)+'</div><div class="mut" style="direction:ltr;cursor:pointer;color:var(--tealdeep);font-weight:700" onclick="copyText(\'@'+esc(p.username||"")+'\')">@'+esc(p.username||"")+'</div><div class="mut" style="margin-top:4px">'+esc(p.status||"")+'</div><div style="margin-top:12px"><span class="pin" style="background:var(--navy);color:#eafaf8" onclick="copyPin()">'+esc(p.pin)+'</span></div></div>'
     +'<div class="card"><div class="field2"><label>اسم العرض</label><input id="pn" value="'+esc(p.display_name)+'"/></div><div class="field2"><label>الحالة</label><input id="ps" value="'+esc(p.status||"")+'"/></div><button class="btn primary full" onclick="saveProfile()">حفظ</button></div>';
 }
 function scrSettings(){
   var dark=localStorage.getItem("pqn_dark")==="1"; var a=localStorage.getItem("pqn_accent")||"teal";
   var sw=Object.keys(ACCENTS).map(function(k){return '<button class="swatch'+(a===k?" on":"")+'" style="background:'+ACCENTS[k][0]+'" onclick="setAccent(\''+k+'\')"></button>'}).join("");
-  return '<div class="card" style="text-align:center"><div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:10px"><span class="qmark" style="width:38px;height:38px"><i></i><i></i></span><div style="font-weight:900;font-size:18px">ثبّت PQN</div></div><div class="mut" style="margin-bottom:12px;line-height:1.7">أضِف التطبيق إلى شاشتك الرئيسية ليفتح كتطبيق مستقلّ بأيقونته الخاصة.</div><button class="btn primary full" onclick="installApp()">📲 تثبيت على الشاشة الرئيسية</button></div>'
+  return backBtn()+'<div class="card" style="text-align:center"><div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:10px"><span class="qmark" style="width:38px;height:38px"><i></i><i></i></span><div style="font-weight:900;font-size:18px">ثبّت PQN</div></div><div class="mut" style="margin-bottom:12px;line-height:1.7">أضِف التطبيق إلى شاشتك الرئيسية ليفتح كتطبيق مستقلّ بأيقونته الخاصة.</div><button class="btn primary full" onclick="installApp()">📲 تثبيت على الشاشة الرئيسية</button></div>'
     +'<div class="card"><div class="shead" style="margin-top:0"><h3>المظهر</h3></div><div class="mut" style="margin-bottom:8px">الوضع</div><div class="acts" style="margin-bottom:16px"><button class="chip '+(!dark?"on":"")+'" onclick="setDark(false)">فاتح ☀️</button><button class="chip '+(dark?"on":"")+'" onclick="setDark(true)">داكن 🌙</button></div><div class="mut" style="margin-bottom:10px">اللون</div><div class="swatches">'+sw+'</div></div>'
     +'<div class="card"><div class="shead" style="margin-top:0"><h3>الإشعارات</h3></div><div class="mut" style="margin-bottom:12px;line-height:1.7">فعّل الإشعارات لتصلك التنبيهات حتى عند إغلاق التطبيق.<br/>على آيفون: أضِف التطبيق للشاشة الرئيسية أولًا.</div><button class="btn secondary full" onclick="enableNotifs()">تفعيل الإشعارات على هذا الجهاز</button></div>'
     +'<div class="card"><div class="shead" style="margin-top:0"><h3>أرسل اقتراحًا 💡</h3></div><div class="field2"><textarea id="sg" placeholder="اكتب اقتراحك لتحسين التطبيق..."></textarea></div><button class="btn primary full" onclick="sendSuggestion()">إرسال الاقتراح</button></div>'
