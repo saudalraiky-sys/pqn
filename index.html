@@ -120,6 +120,7 @@ body.dark .voicebtn{color:#ffd98a}
 @keyframes slideup{from{transform:translateY(50px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .handle{width:44px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px}
 .btn.soft{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+.btn.danger{background:rgba(200,92,92,.12);color:var(--rose);border:1px solid rgba(200,92,92,.3)}
 .row .nm{cursor:pointer}
 .row[onclick]{cursor:pointer}
 .av{position:relative}
@@ -322,6 +323,9 @@ window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.
 window.openGroup=async function(conv,name){ await openConv(conv, name, true); };
 window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; };
 window.closeModal=function(){ var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
+window.deleteChat=async function(fid){ if(!confirm("حذف هذه المحادثة وكل رسائلها؟")) return; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} var d=await SB.rpc("delete_conversation",{p_conv:r.data}); if(d.error){toast("تعذّر الحذف: "+d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } M.unread[fid]=0; await refreshAll(true); go("friends"); toast("تم حذف المحادثة"); };
+window.leaveGroup=async function(conv){ if(!confirm("الخروج من هذه المجموعة؟")) return; var d=await SB.rpc("leave_group",{p_conv:conv}); if(d.error){toast(d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } await loadGroups(); go("groups"); toast("غادرت المجموعة"); };
+window.deleteGroup=async function(gid,conv){ if(!confirm("حذف المجموعة نهائيًا للجميع؟ (للمُنشئ فقط)")) return; var d=await SB.rpc("delete_group",{p_group:gid}); if(d.error){toast((d.error.message||"").indexOf("not allowed")>=0?"الحذف متاح لمُنشئ المجموعة فقط":"تعذّر الحذف: "+d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } await loadGroups(); go("groups"); toast("حُذفت المجموعة"); };
 window.friendDetails=function(id){ var f=M.friends.find(function(x){return x.id===id}); if(!f)return;
   var rows='';
   if(f.username) rows+='<div class="drow" onclick="copyText(\'@'+esc(f.username)+'\')"><span class="dk">المعرّف</span><span class="dv" style="direction:ltr;color:var(--tealdeep)">@'+esc(f.username)+' ⧉</span></div>';
@@ -338,6 +342,7 @@ window.friendDetails=function(id){ var f=M.friends.find(function(x){return x.id=
     +'<div style="display:grid;gap:8px;margin-top:14px">'
     +'<button class="btn primary full" onclick="closeModal();openChat(\''+f.id+'\')">💬 بدء المحادثة</button>'
     +'<button class="btn secondary full" onclick="pingFriend(\''+f.id+'\')">📳 إرسال تنبيه</button>'
+    +'<button class="btn danger full" onclick="deleteChat(\''+f.id+'\')">🗑️ حذف المحادثة</button>'
     +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
   openModal(html); };
 window.groupDetails=function(conv){ var g=M.groups.find(function(x){return x.conversation_id===conv})||M.pubGroups.find(function(x){return x.conversation_id===conv}); if(!g)return; var nameSafe=esc(g.name).replace(/'/g,"");
@@ -350,6 +355,8 @@ window.groupDetails=function(conv){ var g=M.groups.find(function(x){return x.con
     +'</div>'+codeBlock
     +'<div style="display:grid;gap:8px;margin-top:14px">'
     +'<button class="btn primary full" onclick="closeModal();openGroup(\''+conv+'\',\''+nameSafe+'\')">💬 فتح المحادثة</button>'
+    +'<button class="btn soft full" onclick="leaveGroup(\''+conv+'\')">🚪 الخروج من المجموعة</button>'
+    +'<button class="btn danger full" onclick="deleteGroup(\''+g.id+'\',\''+conv+'\')">🗑️ حذف المجموعة (للمُنشئ)</button>'
     +'<button class="btn soft full" onclick="closeModal()">إغلاق</button></div></div>';
   openModal(html); };
 async function openConv(conv, name, isGroup){
@@ -358,7 +365,7 @@ async function openConv(conv, name, isGroup){
   var ms=await SB.from("messages").select("*").eq("conversation_id",conv).order("created_at"); M.msgs=ms.data||[];
   await leaveChat();
   M.chan=SB.channel("conv-"+conv)
-    .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"conversation_id=eq."+conv},function(p){ M.msgs.push(p.new); if(p.new.sender_id!==M.me.id){ if(p.new.kind==="ping"){ pingAlert(); } else { playBlip(); buzz([30]); } if(document.hidden) notify(M.friend?M.friend.display_name:"PQN", p.new.kind==="ping"?"📳 نبّهك":(p.new.kind==="image"?"📷 صورة":(p.new.kind==="voice"?"🎤 رسالة صوتية":(p.new.body||"")))); } if(M.screen==="chat") thread(); })
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"conversation_id=eq."+conv},function(p){ M.msgs.push(p.new); if(p.new.sender_id===M.me.id){ if(!M.isGroup && M.friendId){ var ff=M.friends.find(function(x){return x.id===M.friendId}); if(ff){ ff.last_at=p.new.created_at||new Date().toISOString(); sortFriends(); } } } else { if(p.new.kind==="ping"){ pingAlert(); } else { playBlip(); buzz([30]); } if(document.hidden) notify(M.friend?M.friend.display_name:"PQN", p.new.kind==="ping"?"📳 نبّهك":(p.new.kind==="image"?"📷 صورة":(p.new.kind==="voice"?"🎤 رسالة صوتية":(p.new.body||"")))); } if(M.screen==="chat") thread(); })
     .on("postgres_changes",{event:"DELETE",schema:"public",table:"messages"},function(p){ var id=p.old&&p.old.id; if(!id)return; var n=M.msgs.length; M.msgs=M.msgs.filter(function(x){return x.id!==id}); if(M.msgs.length!==n && M.screen==="chat") thread(); })
     .subscribe();
   M.screen="chat"; render();
