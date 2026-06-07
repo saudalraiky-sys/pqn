@@ -92,6 +92,12 @@ body.dark .pingmsg{color:#ffd98a}
 .nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;display:grid;gap:2px;padding:8px;background:var(--surface);border-top:1px solid var(--line);z-index:40}
 .nav button{padding:9px 1px;border-radius:10px;color:var(--muted);font-size:11px;font-weight:700}
 .nav button.on{color:var(--tealdeep);background:rgba(39,184,174,.12)}
+.addbar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--soft);padding:7px;margin-bottom:14px}
+.addbar input{border:0;outline:0;background:transparent;font-size:14px;padding:11px;min-width:0}
+.addbar .cb{width:44px;height:44px;font-size:24px}
+body.chatting .nav{display:none}
+body.chatting .body{padding-bottom:96px}
+body.chatting .composer{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;margin:0;border-radius:0;border-left:0;border-right:0;padding-bottom:calc(8px + env(safe-area-inset-bottom));z-index:50}
 .spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:sp 1s linear infinite;margin:30px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
@@ -244,6 +250,7 @@ window.go=async function(s){ if(M.screen==="chat"&&s!=="chat") await leaveChat()
 
 function navItems(){ var n=[["friends","الرئيسية"]]; if(flag("groups_enabled")) n.push(["groups","مجموعات"]); n.push(["qid","Q-ID"]); n.push(["profile","الملف"]); n.push(["settings","إعدادات"]); return n; }
 function render(){
+  document.body.classList.toggle("chatting", M.screen==="chat");
   var titles={friends:"الرئيسية",groups:"المجموعات",chat:M.friend?M.friend.display_name:"محادثة",qid:"Q-ID",profile:"الملف",settings:"الإعدادات"};
   $("ttl").textContent=titles[M.screen]||"PQN";
   $("sub").textContent=M.screen==="chat"?(M.isGroup?"مجموعة":"محادثة خاصة"):"دائرتك الخاصة";
@@ -257,10 +264,9 @@ function render(){
 function scrFriends(){
   var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+esc(ini(r.profile.display_name))+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+esc(r.profile.username||r.source||"")+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
   var fr=M.friends.length?M.friends.map(function(f){return '<div class="row"><div class="av">'+esc(ini(f.display_name))+'</div><div class="grow"><div class="nm">'+esc(f.display_name)+'</div><div class="mut">'+esc(f.status||"")+'</div></div><div class="acts"><button class="chip ping" onclick="pingFriend(\''+f.id+'\')" title="تنبيه">📳</button><button class="chip secondary" onclick="openChat(\''+f.id+'\')">محادثة</button></div></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم برقمهم.</div>';
-  return '<div class="greet">أهلًا، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
-    +'<div class="card hero"><div class="lbl">رقمك للمشاركة — اطلب من أصدقائك إضافته</div><span class="pin" onclick="copyPin()">'+esc(M.profile.pin)+'</span><div class="lbl" style="margin:8px 0 0">اضغط الرقم لنسخه · أصدقاؤك: '+M.friends.length+'</div></div>'
-    +'<div class="card"><div class="field2"><label>إضافة صديق برقمه (PIN) أو اسم مستخدمه</label><input id="handle" placeholder="مثال: 7K9M-4R2X"/></div><button class="btn primary full" onclick="addFriend()">إرسال طلب صداقة</button></div>'
-    +(M.requests.length?'<div class="shead"><h3>طلبات واردة</h3><span class="badge">'+M.requests.length+'</span></div><div class="card">'+reqs+'</div>':"")
+  return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: رقمه (PIN) أو كود Q-ID" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">+</button></div>'
+    +'<div class="greet">أهلًا، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
+    +(M.requests.length?'<div class="shead" style="margin-top:4px"><h3>طلبات واردة</h3><span class="badge">'+M.requests.length+'</span></div><div class="card">'+reqs+'</div>':"")
     +'<div class="shead"><h3>أصدقائي</h3><span class="badge">'+M.friends.length+'</span></div><div class="card">'+fr+'</div>';
 }
 function scrGroups(){
