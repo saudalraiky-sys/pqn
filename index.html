@@ -109,6 +109,8 @@ function ini(n){return (n||"؟").trim().slice(0,1)}
 function toast(m){var e=$("toast");e.textContent=m;e.classList.add("show");clearTimeout(window._t);window._t=setTimeout(function(){e.classList.remove("show")},2600)}
 function tm(iso){try{return new Date(iso).toLocaleTimeString("ar",{hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
 function buzz(){try{if(navigator.vibrate)navigator.vibrate([60,40,60])}catch(e){}}
+function askNotify(){ try{ if("Notification" in window && Notification.permission==="default") Notification.requestPermission(); }catch(e){} }
+function notify(title,body){ try{ if("Notification" in window && Notification.permission==="granted") new Notification(title,{body:body,tag:"pqn",lang:"ar",dir:"rtl"}); }catch(e){} }
 function genCode(){var c="2346789ABCDEFGHJKMNPQRTUVWXYZ",p=function(n){var s="";for(var i=0;i<n;i++)s+=c[Math.floor(Math.random()*c.length)];return s};return "Q"+p(1)+"-"+p(4)}
 
 $("enterBtn").onclick=enter;
@@ -126,6 +128,7 @@ async function enter(){
     return;
   }
   try{ await SB.from("profiles").update({display_name:name}).eq("id", r.data.user.id); }catch(e){}
+  askNotify();
   await boot();
 }
 
@@ -141,7 +144,7 @@ async function boot(){
     M.profile=await loadProfile(u.id);
     await refreshAll(true);
     M.screen="friends"; render();
-    startLive();
+    startLive(); askNotify();
   }catch(e){ toast("تعذّر تحميل البيانات: "+(e&&e.message||e)); }
   M.booting=false;
 }
@@ -167,12 +170,14 @@ async function refreshAll(silent){
 function startLive(){
   if(M.live) return;
   M.live=SB.channel("live-"+M.me.id)
-    .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"recipient_id=eq."+M.me.id},function(){ var n=M.requests.length; refreshAll(true).then(function(){ if(M.requests.length>n) toast("📬 طلب صداقة جديد"); }); })
+    .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"recipient_id=eq."+M.me.id},function(){ var n=M.requests.length; refreshAll(true).then(function(){ if(M.requests.length>n){ buzz(); toast("📬 طلب صداقة جديد"); notify("PQN","📬 طلب صداقة جديد"); } }); })
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"requester_id=eq."+M.me.id},function(){ refreshAll(true); })
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){
         var m=p.new; if(m.sender_id===M.me.id) return;
         if(M.screen==="chat" && m.conversation_id===M.conv) return;
-        if(m.kind==="ping"){ buzz(); toast("📳 وصلك تنبيه"); } else { toast("📨 رسالة جديدة"); }
+        var who=(M.friends.find(function(x){return x.id===m.sender_id})||{}).display_name||"PQN";
+        if(m.kind==="ping"){ buzz(); toast("📳 وصلك تنبيه"); notify(who,"📳 نبّهك"); }
+        else { toast("📨 رسالة جديدة"); notify(who, m.body||"📨 رسالة جديدة"); }
     })
     .subscribe();
   if(!M.poll) M.poll=setInterval(function(){ if(M.screen!=="chat") refreshAll(true); },12000);
@@ -198,7 +203,7 @@ window.openChat=async function(fid){
   M.conv=r.data; M.friend=fr;
   var ms=await SB.from("messages").select("*").eq("conversation_id",M.conv).order("created_at"); M.msgs=ms.data||[];
   await leaveChat();
-  M.chan=SB.channel("conv-"+M.conv).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"conversation_id=eq."+M.conv},function(p){ M.msgs.push(p.new); if(p.new.kind==="ping"&&p.new.sender_id!==M.me.id) buzz(); if(M.screen==="chat") thread(); }).subscribe();
+  M.chan=SB.channel("conv-"+M.conv).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"conversation_id=eq."+M.conv},function(p){ M.msgs.push(p.new); if(p.new.sender_id!==M.me.id){ if(p.new.kind==="ping") buzz(); if(document.hidden) notify(M.friend?M.friend.display_name:"PQN", p.new.kind==="ping"?"📳 نبّهك":(p.new.body||"")); } if(M.screen==="chat") thread(); }).subscribe();
   M.screen="chat"; render();
 };
 async function leaveChat(){ if(M.chan){ await SB.removeChannel(M.chan); M.chan=null } }
