@@ -114,6 +114,14 @@ body.dark .voicebtn{color:#ffd98a}
 .addbar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--soft);padding:7px;margin-bottom:14px}
 .addbar input{border:0;outline:0;background:transparent;font-size:14px;padding:11px;min-width:0}
 .addbar .cb{width:44px;height:44px;font-size:24px}
+.qstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.qs{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);box-shadow:var(--soft);color:var(--text)}
+.qs b{font-size:21px;color:var(--tealdeep);line-height:1}
+.qs span{font-size:11px;color:var(--muted)}
+.qs.alert{border-color:rgba(217,164,65,.4);background:rgba(217,164,65,.08)}
+.qs.alert b{color:var(--amber)}
+.row,.tile,.qs,.chip,.btn,.swatch{transition:transform .08s ease}
+.row:active,.tile:active,.qs:active,.chip:active,.btn:active{transform:scale(.97)}
 body.chatting .nav{display:none}
 body.chatting .body{overflow:hidden;padding:12px 14px 0}
 .spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:sp 1s linear infinite;margin:30px auto}
@@ -303,6 +311,8 @@ window.ownerLoginGo=async function(){ var e=($("oe")&&$("oe").value||"").trim(),
 window.delSuggestion=async function(id){ await SB.from("suggestions").delete().eq("id",id); await loadOwnerData(); render(); };
 window.toggleFlag=async function(k){ var nv=!flag(k); var r=await SB.rpc("admin_set_flag",{p_key:k,p_value:nv}); if(r.error){toast(r.error.message);return} await loadFlags(); render(); toast("تم التحديث"); };
 window.go=async function(s){ if(M.screen==="chat"&&s!=="chat") await leaveChat(); if(s==="groups") await loadGroups(); if(s==="settings"&&M.owner) await loadOwnerData(); M.screen=s; render() };
+window.refreshNow=async function(){ await refreshAll(false); };
+function greetWord(){ var h=new Date().getHours(); return h<12?"صباح الخير":(h<17?"نهارك سعيد":"مساء الخير"); }
 
 function navItems(){ var n=[["friends","الرئيسية"]]; if(flag("groups_enabled")) n.push(["groups","مجموعات"]); n.push(["qid","Q-ID"]); n.push(["profile","الملف"]); n.push(["settings","إعدادات"]); return n; }
 function render(){
@@ -321,7 +331,12 @@ function scrFriends(){
   var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+esc(ini(r.profile.display_name))+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+esc(r.profile.username||r.source||"")+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
   var fr=M.friends.length?M.friends.map(function(f){return '<div class="row"><div class="av">'+esc(ini(f.display_name))+'</div><div class="grow"><div class="nm">'+esc(f.display_name)+'</div><div class="mut">'+(f.username?'@'+esc(f.username)+(f.status?' · ':''):'')+esc(f.status||"")+'</div></div><div class="acts"><button class="chip ping" onclick="pingFriend(\''+f.id+'\')" title="تنبيه">📳</button><button class="chip secondary" onclick="openChat(\''+f.id+'\')">محادثة</button></div></div>'}).join(""):'<div class="empty">لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.</div>';
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">+</button></div>'
-    +'<div class="greet">أهلًا، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
+    +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
+    +'<div class="qstats">'
+      +'<button class="qs" onclick="go(\'qid\')"><b>'+M.friends.length+'</b><span>أصدقاء</span></button>'
+      +'<button class="qs '+(M.requests.length?'alert':'')+'" onclick="refreshNow()"><b>'+M.requests.length+'</b><span>طلبات</span></button>'
+      +'<button class="qs" onclick="refreshNow()"><b>🔄</b><span>تحديث</span></button>'
+    +'</div>'
     +(M.requests.length?'<div class="shead" style="margin-top:4px"><h3>طلبات واردة</h3><span class="badge">'+M.requests.length+'</span></div><div class="card">'+reqs+'</div>':"")
     +'<div class="shead"><h3>أصدقائي</h3><span class="badge">'+M.friends.length+'</span></div><div class="card">'+fr+'</div>';
 }
