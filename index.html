@@ -284,6 +284,7 @@ function autoTick(){
   if(!M.me || M.screen==="chat") return;
   refreshAll(true);
   if(M.screen==="groups"){ loadGroups().then(function(){ var a=document.activeElement; if(a&&(a.id==="gname"||a.id==="gdesc"||a.id==="gpriv")) return; render(); }); }
+}
 
 window.addFriend=async function(){ var h=$("handle").value.trim(); if(!h){toast("أدخل اسم مستخدم أو PIN");return} var r=await SB.rpc("find_profile_by_handle",{handle:h}); if(r.error){toast("خطأ: "+r.error.message);return} var f=Array.isArray(r.data)?r.data[0]:r.data; if(!f){toast("لم يُعثر على مستخدم مطابق");return} if(f.id===M.me.id){toast("لا يمكنك إضافة نفسك");return} var ins=await SB.from("friend_requests").insert({requester_id:M.me.id,recipient_id:f.id,source:h[0]==="@"?"username":"pin"}); if(ins.error){toast(ins.error.message.indexOf("duplicate")>=0?"الطلب مُرسَل مسبقًا":ins.error.message);return} $("handle").value="";toast("أُرسل طلب الصداقة ✓"); };
 window.acceptReq=async function(id){ var r=await SB.rpc("accept_friend_request",{req_id:id}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("تم القبول ✓") };
