@@ -355,6 +355,7 @@ window.groupDetails=function(conv){ var g=M.groups.find(function(x){return x.con
     +'</div>'+codeBlock
     +'<div style="display:grid;gap:8px;margin-top:14px">'
     +'<button class="btn primary full" onclick="closeModal();openGroup(\''+conv+'\',\''+nameSafe+'\')">💬 فتح المحادثة</button>'
+    +'<button class="btn secondary full" onclick="groupMembersView(\''+conv+'\')">👥 عرض الأعضاء ('+(g.members||0)+')</button>'
     +'<button class="btn secondary full" onclick="addMemberPicker(\''+conv+'\')">➕ إضافة أصدقاء للمجموعة</button>'
     +(g.code?'<button class="btn soft full" onclick="groupInvite(\''+esc(g.code)+'\')">🔗 مشاركة رابط الدعوة</button>':'')
     +'<button class="btn soft full" onclick="leaveGroup(\''+conv+'\')">🚪 الخروج من المجموعة</button>'
@@ -386,6 +387,9 @@ window.addMemberPicker=function(conv){ var list=M.friends.length?M.friends.map(f
   var html='<div class="sheet"><div class="handle"></div><div class="shead" style="margin-top:0"><h3>إضافة أصدقاء للمجموعة</h3></div><div class="card" style="box-shadow:none;border:0;padding:0;max-height:50vh;overflow:auto">'+list+'</div><button class="btn soft full" style="margin-top:10px" onclick="closeModal()">تم</button></div>';
   openModal(html); };
 window.addMemberToGroup=async function(conv,fid,btn){ var r=await SB.rpc("add_member_to_group",{p_conv:conv,p_user:fid}); if(r.error){toast((r.error.message||"").indexOf("friends")>=0?"يجب أن يكون صديقًا أولًا":"تعذّرت الإضافة");return} if(btn){btn.textContent="أُضيف ✓";btn.disabled=true;} await loadGroups(); toast("تمت إضافة العضو ✓"); };
+window.groupMembersView=async function(conv){ var r=await SB.rpc("group_members",{p_conv:conv}); if(r.error){toast("تعذّر جلب الأعضاء");return} var ms=r.data||[]; var list=ms.map(function(m){return '<div class="row"><div class="av">'+avatarInner(m)+'</div><div class="grow"><div class="nm">'+esc(m.display_name)+(m.is_creator?' 👑':'')+(m.id===M.me.id?' <span class="mut">(أنت)</span>':'')+'</div><div class="mut">'+(m.username?'@'+esc(m.username):'')+'</div></div></div>'}).join("")||'<div class="empty">لا أعضاء</div>';
+  var html='<div class="sheet"><div class="handle"></div><div class="shead" style="margin-top:0"><h3>أعضاء المجموعة</h3><span class="badge">'+ms.length+'</span></div><div class="card" style="box-shadow:none;border:0;padding:0;max-height:55vh;overflow:auto">'+list+'</div><button class="btn soft full" style="margin-top:10px" onclick="closeModal()">إغلاق</button></div>';
+  openModal(html); };
 window.makeQid=async function(){ var code=genCode(); var r=await SB.from("q_ids").insert({owner_id:M.me.id,code:code,purpose:"add_friend",max_uses:100}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("Q-ID جاهز: "+code); };
 window.killQid=async function(id){ await SB.from("q_ids").update({revoked:true}).eq("id",id); await refreshAll(true); render(); toast("أُلغي Q-ID") };
 window.saveProfile=async function(){ var dn=($("pn")&&$("pn").value||"").trim(), st=($("ps")&&$("ps").value||"").trim(); if(!dn){dn=M.profile.display_name||"مستخدم";} var r=await SB.from("profiles").update({display_name:dn,status:st}).eq("id",M.me.id).select().maybeSingle(); if(r.error){toast("تعذّر الحفظ: "+r.error.message);return} if(r.data){M.profile=r.data;}else{M.profile.display_name=dn;M.profile.status=st;} render(); toast("تم حفظ الملف ✓"); };
