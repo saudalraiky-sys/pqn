@@ -252,9 +252,16 @@ body.chatting .body{overflow:hidden;padding:12px 14px 0}
 .livehdr{display:flex;align-items:center;gap:9px;flex:0 0 auto;margin-bottom:10px}
 .chip.danger{background:rgba(200,92,92,.14);border-color:rgba(200,92,92,.34);color:var(--rose)}
 .livestage{flex:0 0 auto;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px 0;border-radius:22px;background:linear-gradient(160deg,var(--navy2),var(--navy3));color:#eafaf8;overflow:hidden;margin-bottom:10px}
-.bcorb{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,var(--teal),var(--tealdeep));box-shadow:0 0 0 0 rgba(39,184,174,.5);animation:pulse 1.8s infinite}
+.bcorb{position:relative;width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,var(--teal),var(--tealdeep));box-shadow:0 0 0 0 rgba(39,184,174,.5);animation:pulse 1.8s infinite}
+.bcorb .icn{position:relative;z-index:2}
 .bcorb .icn{stroke:#eafaf8;width:42px;height:42px}
 .bcwho{font-size:13px;color:#bcd3da}
+.bcorb::before,.bcorb::after{content:"";position:absolute;width:96px;height:96px;border-radius:50%;border:2px solid rgba(87,215,207,.5);animation:ring 2.4s ease-out infinite}
+.bcorb::after{animation-delay:1.2s}
+@keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.4);opacity:0}}
+.livestage::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(39,184,174,.22),transparent 60%);pointer-events:none}
+.clipbtn{display:inline-flex;align-items:center;gap:5px;background:rgba(39,184,174,.16);border:1px solid rgba(39,184,174,.3);color:var(--tealdeep);border-radius:99px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;margin-inline-start:4px}
+.bccmt.clip{background:rgba(39,184,174,.08);border-color:rgba(39,184,174,.25)}
 .bchearts{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .fheart{position:absolute;bottom:40px;font-size:24px;animation:floatup 2.6s ease-out forwards}
 @keyframes floatup{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1;transform:translateY(-20px) scale(1.1)}100%{transform:translateY(-220px) scale(1);opacity:0}}
@@ -430,6 +437,19 @@ window.toggleVoice=async function(){
   }catch(e){ toast("تعذّر الوصول للميكروفون — اسمح بالإذن"); }
 };
 window.playVoice=function(id,el){ var m=M.msgs.find(function(x){return x.id===id}); if(!m)return; el.textContent="▶️ يُشغّل..."; el.disabled=true; var a=new Audio(m.body); a.play().catch(function(){toast("تعذّر التشغيل");el.disabled=false;el.textContent="🎤 استمع (مرة واحدة)"}); a.onended=async function(){ try{await SB.rpc("consume_voice",{p_msg:id});}catch(e){} M.msgs=M.msgs.filter(function(x){return x.id!==id}); if(M.screen==="chat") thread(); toast("اختفت الرسالة الصوتية بعد الاستماع"); }; };
+var _rec2=null,_ch2=[];
+function recordClip(done){
+  if(_rec2 && _rec2.state==="recording"){ _rec2.stop(); return; }
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    _ch2=[]; _rec2=new MediaRecorder(stream);
+    _rec2.ondataavailable=function(e){ if(e.data&&e.data.size>0)_ch2.push(e.data); };
+    _rec2.onstop=async function(){ try{stream.getTracks().forEach(function(t){t.stop()})}catch(e){} document.body.classList.remove("recording"); var blob=new Blob(_ch2,{type:"audio/webm"}); if(blob.size<500){toast("التسجيل قصير جدًا");return} done(blob); };
+    _rec2.start(); audioCtx(); document.body.classList.add("recording"); buzz([30]); toast("🎤 جارٍ التسجيل... اضغط مجددًا للإيقاف والإرسال");
+  }).catch(function(){ toast("تعذّر الوصول للميكروفون — اسمح بالإذن"); });
+}
+window.pulseVoice=function(){ recordClip(async function(blob){ toast("...جارٍ رفع الصوت"); var path="pulses/"+M.me.id+"-"+Date.now()+".webm"; var up=await SB.storage.from("media").upload(path,blob,{contentType:"audio/webm"}); if(up.error){toast("تعذّر الرفع");return} var url=SB.storage.from("media").getPublicUrl(path).data.publicUrl; var r=await SB.rpc("add_pulse",{p_kind:"voice",p_body:url}); if(r.error){toast(r.error.message);return} await loadCircle(); render(); toast("نُشرت نبضتك الصوتية 🟣"); }); };
+window.playClip=function(url,el){ var t=el.innerHTML; el.disabled=true; el.innerHTML="▶️ يُشغّل..."; var a=new Audio(url); a.play().catch(function(){el.disabled=false;el.innerHTML=t}); a.onended=function(){el.disabled=false;el.innerHTML=t}; };
+window.bcClip=function(){ recordClip(async function(blob){ toast("...جارٍ رفع المقطع"); var path="bc/"+M.me.id+"-"+Date.now()+".webm"; var up=await SB.storage.from("media").upload(path,blob,{contentType:"audio/webm"}); if(up.error){toast("تعذّر الرفع");return} var url=SB.storage.from("media").getPublicUrl(path).data.publicUrl; var d={name:M.profile.display_name,clip:url}; M.bcComments.push(d); renderBcComments(); try{ M.bc&&M.bc.send({type:"broadcast",event:"clip",payload:d}); }catch(e){} toast("شاركت مقطعًا صوتيًا 🎤"); }); };
 
 async function loadFlags(){ try{ var r=await SB.from("app_settings").select("*"); M.flags={}; (r.data||[]).forEach(function(x){M.flags[x.key]=x.value}); }catch(e){} }
 loadFlags();
@@ -646,7 +666,7 @@ function scrCircle(){
   var bc="";
   if(M.broads.length){ bc=M.broads.map(function(b){var t=esc(b.title).replace(/'/g,"");var mine=b.host_id===M.me.id;return '<div class="bccard" onclick="joinBroadcast(\''+b.id+'\',\''+esc(b.display_name).replace(/'/g,"")+'\','+(mine?'true':'false')+',\''+t+'\')"><div class="bcpulse">'+ic("radio")+'</div><div class="grow"><div class="nm">'+(mine?"بثّك مباشر الآن":esc(b.display_name)+" يبثّ الآن")+'</div><div class="mut">'+esc(b.title)+' · اضغط للانضمام</div></div><span class="livedot">●</span></div>'}).join(""); }
   var startBtn='<button class="btn primary full" onclick="startBroadcastPrompt()">'+ic("radio","sm")+' ابدأ بثًّا في دائرتك</button>';
-  var compose='<div class="card"><div class="composepulse"><div class="av" style="width:38px;height:38px">'+avatarInner(M.profile)+'</div><input id="pulsein" placeholder="شارك نبضة مع دائرتك..." onkeydown="if(event.key===\'Enter\')addPulse()"/><button class="cb mini" onclick="pulseImage()" title="صورة">'+ic("image","sm")+'</button><button class="cb" onclick="addPulse()">'+ic("send","sm")+'</button></div><input type="file" id="pulseImg" accept="image/*" style="display:none" onchange="onPulseImg(event)"/></div>';
+  var compose='<div class="card"><div class="composepulse"><div class="av" style="width:38px;height:38px">'+avatarInner(M.profile)+'</div><input id="pulsein" placeholder="شارك نبضة مع دائرتك..." onkeydown="if(event.key===\'Enter\')addPulse()"/><button class="cb mini rec" onclick="pulseVoice()" title="نبضة صوتية">'+ic("mic","sm")+'</button><button class="cb mini" onclick="pulseImage()" title="صورة">'+ic("image","sm")+'</button><button class="cb" onclick="addPulse()">'+ic("send","sm")+'</button></div><input type="file" id="pulseImg" accept="image/*" style="display:none" onchange="onPulseImg(event)"/></div>';
   var feed=M.pulses.length?M.pulses.map(pulseCard).join(""):'<div class="empty">لا نبضات بعد. كن أول من يشارك لحظة صادقة مع دائرته 🟣</div>';
   return '<div class="shead" style="margin-top:0"><h3>'+ic("circle","sm")+' حضور الدائرة</h3><span class="badge">'+(on.length+1)+' متّصل</span></div>'
     +strip
@@ -657,7 +677,7 @@ function scrCircle(){
 }
 function pulseCard(p){
   var mine=p.author_id===M.me.id;
-  var media=p.kind==="image"?'<img class="pulseimg" src="'+esc(p.body)+'" onclick="window.open(this.src,\'_blank\')"/>':('<div class="pulsetext">'+esc(p.body)+'</div>');
+  var media=p.kind==="image"?'<img class="pulseimg" src="'+esc(p.body)+'" onclick="window.open(this.src,\'_blank\')"/>':(p.kind==="voice"?('<button class="voicebtn" onclick="playClip(\''+esc(p.body)+'\',this)">'+ic("mic","sm")+' استمع للنبضة الصوتية</button>'):('<div class="pulsetext">'+esc(p.body)+'</div>'));
   var del=mine?'<button class="pulsedel" onclick="delPulse(\''+p.id+'\')">'+ic("trash","sm")+'</button>':'';
   var reacted=p.mine?' on':'';
   return '<div class="card pulse"><div class="row" style="padding:0 0 8px;border:0"><div class="av" style="width:40px;height:40px">'+avatarInner(p)+'</div><div class="grow"><div class="nm">'+esc(p.display_name)+(mine?' <span class="mut">(أنت)</span>':'')+'</div><div class="mut">'+fmtLeft(p.expires_at)+'</div></div>'+del+'</div>'+media
@@ -675,6 +695,7 @@ window.joinBroadcast=async function(id, host, mine, title){
     .on("presence",{event:"sync"},function(){ try{ var st=M.bc.presenceState(); M.bcCount=Object.keys(st).length; var c=$("bccount"); if(c)c.textContent=M.bcCount; }catch(e){} })
     .on("broadcast",{event:"heart"},function(){ floatHeart(); })
     .on("broadcast",{event:"comment"},function(p){ var d=p.payload||{}; M.bcComments.push(d); renderBcComments(); })
+    .on("broadcast",{event:"clip"},function(p){ var d=p.payload||{}; M.bcComments.push(d); renderBcComments(); if(!quietActive()) playBlip(); })
     .on("broadcast",{event:"end"},function(){ if(!M.bcHost){ toast("انتهى البث"); leaveBroadcast(); } })
     .subscribe(function(s){ if(s==="SUBSCRIBED"){ try{ M.bc.track({id:M.me.id,name:M.profile.display_name}); }catch(e){} } });
   render();
@@ -684,14 +705,14 @@ window.leaveBroadcast=async function(){ await leaveBc(); M.bcId=null; M.screen="
 window.endBroadcast=async function(){ if(!M.bcId)return; try{ M.bc&&M.bc.send({type:"broadcast",event:"end",payload:{}}); }catch(e){} await SB.rpc("end_broadcast",{p_id:M.bcId}); await leaveBroadcast(); toast("أُنهي البث"); };
 window.sendHeart=function(){ floatHeart(); try{ M.bc&&M.bc.send({type:"broadcast",event:"heart",payload:{}}); }catch(e){} };
 window.sendBcComment=function(){ var i=$("bccmt"); var v=(i&&i.value||"").trim(); if(!v)return; i.value=""; var d={name:M.profile.display_name,body:v}; M.bcComments.push(d); renderBcComments(); try{ M.bc&&M.bc.send({type:"broadcast",event:"comment",payload:d}); }catch(e){} };
-function renderBcComments(){ var el=$("bccmts"); if(!el)return; el.innerHTML=M.bcComments.slice(-40).map(function(d){return '<div class="bccmt"><b>'+esc(d.name)+'</b> '+esc(d.body)+'</div>'}).join(""); el.scrollTop=el.scrollHeight; }
+function renderBcComments(){ var el=$("bccmts"); if(!el)return; el.innerHTML=M.bcComments.slice(-40).map(function(d){ if(d.clip){ return '<div class="bccmt clip"><b>'+esc(d.name)+'</b> شارك مقطعًا · <button class="clipbtn" onclick="playClip(\''+esc(d.clip)+'\',this)">'+ic("mic","sm")+' استمع</button></div>'; } return '<div class="bccmt"><b>'+esc(d.name)+'</b> '+esc(d.body)+'</div>'}).join(""); el.scrollTop=el.scrollHeight; }
 function floatHeart(){ var w=$("bchearts"); if(!w)return; var s=document.createElement("span"); s.className="fheart"; s.textContent=["❤️","🧡","💚","💛","🩵"][Math.floor(Math.random()*5)]; s.style.left=(10+Math.random()*70)+"%"; w.appendChild(s); setTimeout(function(){ s.remove(); },2600); }
 function scrLive(){
   return '<div class="livewrap">'
     +'<div class="livehdr"><button class="chip" onclick="leaveBroadcast()">'+ic("back","sm")+'</button><div class="grow"><div class="nm" style="font-size:16px">'+esc(M.bcTitle)+'</div><div class="mut"><span class="livedot">●</span> بث مباشر · <span id="bccount">1</span> حاضر</div></div>'+(M.bcHost?'<button class="chip danger" onclick="endBroadcast()">إنهاء</button>':'')+'</div>'
     +'<div class="livestage"><div class="bcorb">'+ic("radio")+'</div><div class="bchearts" id="bchearts"></div><div class="bcwho">'+(M.bcHost?"أنت تبثّ الآن":"أنت في البث")+'</div></div>'
     +'<div class="bccmts" id="bccmts"></div>'
-    +'<div class="composer"><button class="cb ghost" onclick="sendHeart()" title="قلب">'+ic("heart","sm")+'</button><input id="bccmt" placeholder="علّق في اللحظة..." onkeydown="if(event.key===\'Enter\')sendBcComment()"/><button class="cb" onclick="sendBcComment()">'+ic("send","sm")+'</button></div>'
+    +'<div class="composer"><button class="cb ghost" onclick="sendHeart()" title="قلب">'+ic("heart","sm")+'</button><button class="cb mini rec" onclick="bcClip()" title="مقطع صوتي">'+ic("mic","sm")+'</button><input id="bccmt" placeholder="علّق في اللحظة..." onkeydown="if(event.key===\'Enter\')sendBcComment()"/><button class="cb" onclick="sendBcComment()">'+ic("send","sm")+'</button></div>'
     +'</div>';
 }
 function liveAfterRender(){ renderBcComments(); }
