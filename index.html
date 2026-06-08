@@ -53,6 +53,16 @@ svg{display:block}
 @keyframes tailIn{to{stroke-dashoffset:0}}
 @keyframes dotPop{0%{opacity:0;transform:scale(0)}100%{opacity:1;transform:scale(1)}}
 @keyframes logoGlow{0%,100%{filter:drop-shadow(0 0 2px color-mix(in srgb,var(--gold) 30%,transparent))}50%{filter:drop-shadow(0 0 9px color-mix(in srgb,var(--gold) 75%,transparent))}}
+.qmark.biglogo{overflow:visible}
+.particles{position:absolute;inset:-40%;pointer-events:none;z-index:-1}
+.particles i{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:0;filter:drop-shadow(0 0 4px var(--gold));animation:spark 3.4s ease-in-out infinite}
+.particles i:nth-child(1){top:8%;left:18%;animation-delay:0s}
+.particles i:nth-child(2){top:22%;left:84%;animation-delay:.5s}
+.particles i:nth-child(3){top:74%;left:10%;animation-delay:1s}
+.particles i:nth-child(4){top:88%;left:72%;animation-delay:1.6s;width:3px;height:3px}
+.particles i:nth-child(5){top:42%;left:96%;animation-delay:2.1s;width:3px;height:3px}
+.particles i:nth-child(6){top:60%;left:-4%;animation-delay:2.7s}
+@keyframes spark{0%{opacity:0;transform:translateY(6px) scale(.5)}30%{opacity:1;transform:translateY(0) scale(1)}70%{opacity:.7}100%{opacity:0;transform:translateY(-10px) scale(.4)}}
 
 /* ===== auth ===== */
 .center{min-height:100vh;display:grid;place-items:center;padding:26px;background:
@@ -396,7 +406,7 @@ body.dark .reactbtn.on{color:var(--em2)}
 <div class="toast" id="toast"></div>
 <div class="center" id="authView">
   <div class="auth">
-    <div class="brand"><span class="qmark"><i></i><i></i></span>PQN</div>
+    <div class="brand"><span class="qmark biglogo"></span>PQN</div>
     <p class="tag">دائرتك الخاصة، بعيدًا عن الضوضاء</p>
     <div class="field"><label>اختر اسمك المميّز (لا يتكرر)</label><input id="name" placeholder="@اسمك" maxlength="30"/></div>
     <button class="btn primary full" id="enterBtn">ادخل مباشرة</button>
@@ -792,7 +802,7 @@ async function loadMutedMap(){ try{ var r=await SB.rpc("muted_convs"); M.mutedMa
 async function loadBlocks(){ try{ var r=await SB.rpc("my_blocks"); M.blocks={}; (r.data||[]).forEach(function(x){ M.blocks[x.blocked_id]=true; }); }catch(e){ M.blocks=M.blocks||{}; } }
 function logEvent(name,meta){ try{ SB.rpc("log_event",{p_name:name,p_meta:meta||{}}); }catch(e){} }
 const LOGO_SVG='<svg class="qlogo" viewBox="0 0 100 100" fill="none" aria-hidden="true"><circle class="lring" cx="50" cy="50" r="38" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="200 240" transform="rotate(28 50 50)"/><line class="ltail" x1="76.8" y1="73.2" x2="88" y2="84" stroke="currentColor" stroke-width="8" stroke-linecap="round"/><circle class="ldot d1" cx="40" cy="48" r="6" fill="currentColor"/><circle class="ldot d2" cx="60" cy="48" r="6" fill="currentColor"/></svg>';
-function paintLogos(){ try{ document.querySelectorAll(".qmark").forEach(function(el){ if(el.getAttribute("data-logo")!=="1"){ el.innerHTML=LOGO_SVG; el.setAttribute("data-logo","1"); } }); }catch(e){} }
+function paintLogos(){ try{ document.querySelectorAll(".qmark").forEach(function(el){ if(el.getAttribute("data-logo")!=="1"){ var extra=el.classList.contains("biglogo")?'<span class="particles"><i></i><i></i><i></i><i></i><i></i><i></i></span>':""; el.innerHTML=LOGO_SVG+extra; el.setAttribute("data-logo","1"); } }); }catch(e){} }
 function isBlocked(id){ return M.blocks && M.blocks[id]; }
 window.blockUser=function(id,name){ openModal('<div class="sheet"><div class="handle"></div><div class="shead" style="margin-top:0"><h3>حظر '+esc(name||"")+'؟</h3></div><div class="mut" style="margin-bottom:14px;line-height:1.7">لن يستطيع مراسلتك أو إيجادك، وسيُزال من أصدقائك. يمكنك إلغاء الحظر لاحقًا من الإعدادات.</div><button class="btn danger full" onclick="doBlock(\''+id+'\')">تأكيد الحظر</button><button class="btn soft full" style="margin-top:8px" onclick="closeModal()">إلغاء</button></div>'); };
 window.doBlock=async function(id){ var r=await SB.rpc("block_user",{p_target:id}); if(r.error){toast("تعذّر الحظر: "+r.error.message);return} M.blocks[id]=true; M.friends=M.friends.filter(function(f){return f.id!==id}); logEvent("block"); closeModal(); go("friends"); toast("تم الحظر"); };
