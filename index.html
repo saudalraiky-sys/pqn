@@ -219,6 +219,50 @@ body.chatting .body{overflow:hidden;padding:12px 14px 0}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .body>*{animation:fadeUp .26s cubic-bezier(.2,.8,.2,1) both}
 
+/* ===== circle / pulses ===== */
+.livestrip{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;scrollbar-width:none}
+.livestrip::-webkit-scrollbar{display:none}
+.livecell{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto;width:62px;cursor:pointer}
+.livecell span{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px}
+.avring{padding:2px;border-radius:50%;background:var(--line)}
+.avring.on{background:linear-gradient(135deg,var(--teal),var(--teal2));box-shadow:0 0 0 0 rgba(39,184,174,.5);animation:pulse 2s infinite}
+.avring .av{width:52px;height:52px;border-radius:50%;border:2px solid var(--surface)}
+.livehint{display:flex;align-items:center;color:var(--muted);font-size:12px;padding:0 8px}
+.bccard{display:flex;align-items:center;gap:11px;padding:13px;border-radius:var(--r);background:linear-gradient(135deg,rgba(200,92,92,.16),rgba(217,164,65,.1));border:1px solid rgba(200,92,92,.3);margin-bottom:10px;cursor:pointer}
+.bcpulse{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--rose);color:#fff;animation:pulse 1.6s infinite}
+.bcpulse .icn{stroke:#fff;width:22px;height:22px}
+.livedot{color:var(--rose);font-size:11px;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.composepulse{display:flex;align-items:center;gap:8px}
+.composepulse input{flex:1;min-width:0;border:0;outline:0;background:var(--surface2);border-radius:12px;padding:11px 13px;font-size:14px}
+.pulse .pulsetext{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.pulse .pulseimg{width:100%;max-height:340px;object-fit:cover;border-radius:12px;display:block;cursor:pointer}
+.pulsedel{background:none;border:0;color:var(--muted);cursor:pointer;flex:0 0 auto;padding:4px}
+.pulsefoot{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.reactbtn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-weight:700;font-size:13px}
+.reactbtn.on{background:rgba(200,92,92,.14);border-color:rgba(200,92,92,.3);color:var(--rose)}
+.reactbtn.on .icn{stroke:var(--rose);fill:var(--rose)}
+.reactrow{display:flex;gap:4px;margin-inline-start:auto}
+.reactrow button{width:34px;height:34px;border-radius:50%;background:var(--surface2);border:1px solid var(--line);font-size:16px;line-height:1;cursor:pointer;transition:transform .12s}
+.reactrow button:active{transform:scale(1.2)}
+.reactrow button.on{background:rgba(39,184,174,.16);border-color:var(--teal)}
+
+/* ===== live session ===== */
+.livewrap{display:flex;flex-direction:column;height:100%}
+.livehdr{display:flex;align-items:center;gap:9px;flex:0 0 auto;margin-bottom:10px}
+.chip.danger{background:rgba(200,92,92,.14);border-color:rgba(200,92,92,.34);color:var(--rose)}
+.livestage{flex:0 0 auto;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px 0;border-radius:22px;background:linear-gradient(160deg,var(--navy2),var(--navy3));color:#eafaf8;overflow:hidden;margin-bottom:10px}
+.bcorb{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,var(--teal),var(--tealdeep));box-shadow:0 0 0 0 rgba(39,184,174,.5);animation:pulse 1.8s infinite}
+.bcorb .icn{stroke:#eafaf8;width:42px;height:42px}
+.bcwho{font-size:13px;color:#bcd3da}
+.bchearts{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.fheart{position:absolute;bottom:40px;font-size:24px;animation:floatup 2.6s ease-out forwards}
+@keyframes floatup{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1;transform:translateY(-20px) scale(1.1)}100%{transform:translateY(-220px) scale(1);opacity:0}}
+.bccmts{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px 2px}
+.bccmt{background:var(--glass2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.5;animation:fadeUp .2s ease both}
+.bccmt b{color:var(--tealdeep)}
+.livewrap .composer{flex:0 0 auto;margin:6px 0 8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+
 </style>
 </head>
 <body>
@@ -279,13 +323,20 @@ var ICONS={
   send:'<path d="M21 4 3 11l6 2 2 6z"/><path d="M21 4 11 13"/>',
   back:'<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
   image:'<rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M5 17l4-4 3 3 3-3 4 4"/>',
-  bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/>'
+  bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  circle:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/>',
+  chat:'<path d="M21 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-5A8 8 0 1 1 21 11.5z"/>',
+  heart:'<path d="M12 20s-7-4.3-9.3-8.4A5 5 0 0 1 12 6a5 5 0 0 1 9.3 5.6C19 15.7 12 20 12 20z"/>',
+  radio:'<circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 16.5a6 6 0 0 0 0-9M4.8 4.8a10 10 0 0 0 0 14.4M19.2 19.2a10 10 0 0 0 0-14.4"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  trash:'<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>'
 };
 function ic(name,cls){ return '<svg class="icn '+(cls||"")+'" viewBox="0 0 24 24">'+(ICONS[name]||"")+'</svg>'; }
 
 /* ===== ميزات متقدّمة: حالة إضافية ===== */
 M.replyTo=null; M.ttl=0; M.peerReadAt=null; M.typingTimer=null; M.fSearch=""; M.gSearch="";
 M.quietBatch=0;
+M.online={}; M.pulses=[]; M.broads=[]; M.bc=null; M.bcId=null; M.bcHost=false; M.bcTitle=""; M.bcCount=0; M.bcComments=[];
 function quietCfg(){ try{ return JSON.parse(localStorage.getItem("pqn_quiet")||"null")||{on:false,from:"22:00",to:"07:00"} }catch(e){ return {on:false,from:"22:00",to:"07:00"} } }
 function quietActive(){ var q=quietCfg(); if(!q.on) return false; var now=new Date(); var cur=now.getHours()*60+now.getMinutes(); var pf=(q.from||"22:00").split(":"),pt=(q.to||"07:00").split(":"); var a=(+pf[0])*60+(+pf[1]), b=(+pt[0])*60+(+pt[1]); return a<=b ? (cur>=a&&cur<b) : (cur>=a||cur<b); }
 window.setQuiet=function(on){ var q=quietCfg(); q.on=on; localStorage.setItem("pqn_quiet",JSON.stringify(q)); render(); toast(on?"🌙 الوضع الهادئ مفعّل":"الوضع الهادئ متوقّف"); };
@@ -413,7 +464,8 @@ async function boot(){
     try{ var ad=await SB.rpc("is_current_user_admin"); M.owner=(ad.data===true); }catch(e){ M.owner=false; }
     await refreshAll(true);
     await ensureKeys();
-    M.screen="friends"; render();
+    await loadCircle();
+    M.screen="circle"; render();
     startLive(); askNotify(); handleInvite();
   }catch(e){ toast("تعذّر تحميل البيانات: "+(e&&e.message||e)); }
   M.booting=false;
@@ -440,12 +492,13 @@ function startLive(){
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"recipient_id=eq."+M.me.id},function(){ var n=M.requests.length; refreshAll(true).then(function(){ if(M.requests.length>n){ buzz(); toast("📬 طلب صداقة جديد"); notify("PQN","📬 طلب صداقة جديد"); } }); })
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"requester_id=eq."+M.me.id},function(){ refreshAll(true); })
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){ var m=p.new; if(m.sender_id===M.me.id) return; if(M.screen==="chat"&&m.conversation_id===M.conv) return; var fr=M.friends.find(function(x){return x.id===m.sender_id}); var who=(fr&&fr.display_name)||"رسالة"; M.unread[m.sender_id]=(M.unread[m.sender_id]||0)+1; if(fr){ fr.last_at=m.created_at||new Date().toISOString(); sortFriends(); } if(M.screen==="friends") render(); var q=quietActive(); if(m.kind==="ping"){ if(!q)pingAlert(); inAppNote("📳 "+who, "نبّهك بتنبيه", m.conversation_id, who); notify("📳 "+who,"نبّهك", m.sender_id); } else { if(!q){buzz([45]); playBlip();} var prev=m.kind==="image"?"📷 صورة":(m.kind==="voice"?"🎤 رسالة صوتية (مرة واحدة)":(m.enc?"🔒 رسالة مشفّرة":(m.body||"رسالة جديدة"))); var cnt=M.unread[m.sender_id]; inAppNote("📨 "+who+(cnt>1?" ("+cnt+")":""), prev, m.conversation_id, who); notify(who+(cnt>1?" ("+cnt+" رسائل)":""), prev, m.sender_id); } })
-    .subscribe();
-  if(!M.poll) M.poll=setInterval(autoTick, 7000);
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"broadcasts"},function(p){ var b=p.new; if(!b||!b.active||b.host_id===M.me.id) return; var fr=M.friends.find(function(x){return x.id===b.host_id}); if(!fr) return; if(!quietActive()){ pingAlert(); } inAppNote("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة", null, null); notify("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة"); loadCircle().then(function(){ if(M.screen==="circle") render(); }); })
+    .on("presence",{event:"sync"},function(){ try{ var st=M.live.presenceState(); var seen={}; for(var k in st){ (st[k]||[]).forEach(function(m){ if(m&&m.id) seen[m.id]=true; }); } M.online=seen; if(M.screen==="circle") render(); }catch(e){} })
+    .subscribe(function(s){ if(s==="SUBSCRIBED"){ try{ M.live.track({id:M.me.id,name:(M.profile&&M.profile.display_name)||"مستخدم"}); }catch(e){} } });
   document.addEventListener("visibilitychange", function(){ if(!document.hidden && M.me) autoTick(); });
 }
 function autoTick(){
-  if(!M.me || M.screen==="chat") return;
+  if(!M.me || M.screen==="chat" || M.screen==="live") return;
   refreshAll(true);
   if(M.screen==="groups"){ loadGroups().then(function(){ var a=document.activeElement; if(a&&(a.id==="gname"||a.id==="gdesc"||a.id==="gpriv"||a.id==="gcode")) return; render(); }); }
 }
@@ -550,7 +603,7 @@ window.sendSuggestion=async function(){ var t=($("sg")&&$("sg").value||"").trim(
 window.ownerLoginGo=async function(){ var e=($("oe")&&$("oe").value||"").trim(), p=($("op")&&$("op").value||""); if(!e||!p){toast("أدخل البريد وكلمة المرور");return} var r=await SB.auth.signInWithPassword({email:e,password:p}); if(r.error){toast("تعذّر: "+r.error.message);return} M.me=null; await boot(); if(M.owner){ await loadOwnerData(); toast("مرحبًا أيها المالك"); } else { toast("هذا الحساب ليس مالكًا"); } M.screen="settings"; render(); };
 window.delSuggestion=async function(id){ await SB.from("suggestions").delete().eq("id",id); await loadOwnerData(); render(); };
 window.toggleFlag=async function(k){ var nv=!flag(k); var r=await SB.rpc("admin_set_flag",{p_key:k,p_value:nv}); if(r.error){toast(r.error.message);return} await loadFlags(); render(); toast("تم التحديث"); };
-window.go=async function(s){ if(M.screen!==s && M.screen!=="chat") M.prev=M.screen; if(M.screen==="chat"&&s!=="chat") await leaveChat(); if(s==="groups") await loadGroups(); if(s==="settings"&&M.owner) await loadOwnerData(); M.screen=s; render() };
+window.go=async function(s){ if(M.screen!==s && M.screen!=="chat") M.prev=M.screen; if(M.screen==="chat"&&s!=="chat") await leaveChat(); if(M.screen==="live"&&s!=="live") await leaveBc(); if(s==="circle") await loadCircle(); if(s==="groups") await loadGroups(); if(s==="settings"&&M.owner) await loadOwnerData(); M.screen=s; render() };
 window.goBack=function(){ if($("modal")&&$("modal").classList.contains("show")){ closeModal(); return; } if(M.screen==="chat"){ go("friends"); return; } go(M.prev||"friends"); };
 (function(){ var sx=0,sy=0,st=0,active=false;
   document.addEventListener("touchstart",function(e){ if(!document.body.classList.contains("in"))return; var t=e.touches[0]; var w=window.innerWidth; if(t.clientX<38||t.clientX>w-38){ sx=t.clientX;sy=t.clientY;st=Date.now();active=true; } else active=false; },{passive:true});
@@ -559,20 +612,89 @@ window.goBack=function(){ if($("modal")&&$("modal").classList.contains("show")){
 window.refreshNow=async function(){ await refreshAll(false); };
 function greetWord(){ var h=new Date().getHours(); return h<12?"صباح الخير":(h<17?"نهارك سعيد":"مساء الخير"); }
 
-function navItems(){ var n=[["friends","الرئيسية","home"]]; if(flag("groups_enabled")) n.push(["groups","مجموعات","users"]); n.push(["qid","Q-ID","qr"]); n.push(["profile","الملف","user"]); n.push(["settings","إعدادات","gear"]); return n; }
+function navItems(){ var n=[["circle","الدائرة","circle"],["friends","المحادثات","chat"]]; if(flag("groups_enabled")) n.push(["groups","مجموعات","users"]); n.push(["profile","الملف","user"]); n.push(["settings","إعدادات","gear"]); return n; }
 function backBtn(){ return '<button class="chip" onclick="goBack()" style="margin-bottom:14px">'+ic("back","sm")+'رجوع</button>'; }
 function render(){
-  document.body.classList.toggle("chatting", M.screen==="chat");
-  var titles={friends:"الرئيسية",groups:"المجموعات",chat:M.friend?M.friend.display_name:"محادثة",qid:"Q-ID",profile:"الملف",settings:"الإعدادات"};
+  document.body.classList.toggle("chatting", M.screen==="chat"||M.screen==="live");
+  var titles={circle:"الدائرة",friends:"المحادثات",groups:"المجموعات",chat:M.friend?M.friend.display_name:"محادثة",qid:"Q-ID",profile:"الملف",settings:"الإعدادات",live:"بث الدائرة"};
   $("ttl").textContent=titles[M.screen]||"PQN";
-  $("sub").textContent=M.screen==="chat"?(M.isGroup?"مجموعة":"محادثة خاصة"):"دائرتك الخاصة";
-  var active=M.screen==="chat"?"friends":M.screen; var items=navItems();
+  $("sub").textContent=M.screen==="chat"?(M.isGroup?"مجموعة":"محادثة خاصة"):(M.screen==="circle"?"مَن معك الآن":(M.screen==="live"?"حضور لحظي":"دائرتك الخاصة"));
+  var active=(M.screen==="chat")?"friends":(M.screen==="live"?"circle":M.screen); var items=navItems();
   var nav=$("nav"); nav.style.gridTemplateColumns="repeat("+items.length+",1fr)";
   nav.innerHTML=items.map(function(n){return '<button class="'+(active===n[0]?"on":"")+'" onclick="go(\''+n[0]+'\')">'+ic(n[2])+'<span>'+n[1]+'</span></button>'}).join("");
-  var map={friends:scrFriends,groups:scrGroups,chat:scrChat,qid:scrQid,profile:scrProfile,settings:scrSettings};
-  $("screen").innerHTML=(map[M.screen]||scrFriends)();
+  var map={circle:scrCircle,friends:scrFriends,groups:scrGroups,chat:scrChat,qid:scrQid,profile:scrProfile,settings:scrSettings,live:scrLive};
+  $("screen").innerHTML=(map[M.screen]||scrCircle)();
   if(M.screen==="chat") thread();
+  if(M.screen==="live") liveAfterRender();
 }
+async function loadCircle(){
+  try{ var p=await SB.rpc("circle_pulses"); M.pulses=p.data||[]; }catch(e){ M.pulses=[]; }
+  try{ var b=await SB.rpc("active_broadcasts"); M.broads=b.data||[]; }catch(e){ M.broads=[]; }
+}
+window.addPulse=async function(){ var i=$("pulsein"); var v=(i&&i.value||"").trim(); if(!v){toast("اكتب نبضتك");return} i.value=""; var r=await SB.rpc("add_pulse",{p_kind:"text",p_body:v}); if(r.error){toast("تعذّر النشر: "+r.error.message);return} await loadCircle(); render(); toast("نُشرت نبضتك 🟣"); };
+window.pulseImage=function(){ var el=$("pulseImg"); if(el){ el.value=""; el.click(); } };
+window.onPulseImg=async function(ev){ var f=ev.target.files&&ev.target.files[0]; if(!f)return; toast("...جارٍ الرفع"); var ext=((f.name.split(".").pop())||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg"; var path="pulses/"+M.me.id+"-"+Date.now()+"."+ext; var up=await SB.storage.from("media").upload(path,f,{contentType:f.type||"image/jpeg"}); if(up.error){toast("تعذّر الرفع");return} var url=SB.storage.from("media").getPublicUrl(path).data.publicUrl; var r=await SB.rpc("add_pulse",{p_kind:"image",p_body:url}); if(r.error){toast(r.error.message);return} await loadCircle(); render(); toast("نُشرت نبضتك 🟣"); };
+window.reactPulse=async function(id,emoji){ var r=await SB.rpc("react_pulse",{p_pulse:id,p_emoji:emoji||"❤️"}); if(r.error){toast(r.error.message);return} await loadCircle(); if(M.screen==="circle") render(); };
+window.delPulse=async function(id){ if(!confirm("حذف هذه النبضة؟"))return; await SB.rpc("delete_pulse",{p_pulse:id}); await loadCircle(); render(); toast("حُذفت"); };
+function onlineFriends(){ var arr=[]; for(var id in M.online){ if(id===M.me.id) continue; var f=M.friends.find(function(x){return x.id===id}); if(f) arr.push(f); } return arr; }
+function scrCircle(){
+  var on=onlineFriends();
+  var strip="";
+  var meCell='<div class="livecell"><div class="avring on"><div class="av">'+avatarInner(M.profile)+'</div></div><span>أنت</span></div>';
+  var others=on.map(function(f){return '<div class="livecell" onclick="openChat(\''+f.id+'\')"><div class="avring on"><div class="av">'+avatarInner(f)+'</div></div><span>'+esc((f.display_name||"").split(" ")[0])+'</span></div>'}).join("");
+  strip='<div class="livestrip">'+meCell+others+(on.length?'':'<div class="livehint">أصدقاؤك المتّصلون الآن سيظهرون هنا ✨</div>')+'</div>';
+  var bc="";
+  if(M.broads.length){ bc=M.broads.map(function(b){var t=esc(b.title).replace(/'/g,"");var mine=b.host_id===M.me.id;return '<div class="bccard" onclick="joinBroadcast(\''+b.id+'\',\''+esc(b.display_name).replace(/'/g,"")+'\','+(mine?'true':'false')+',\''+t+'\')"><div class="bcpulse">'+ic("radio")+'</div><div class="grow"><div class="nm">'+(mine?"بثّك مباشر الآن":esc(b.display_name)+" يبثّ الآن")+'</div><div class="mut">'+esc(b.title)+' · اضغط للانضمام</div></div><span class="livedot">●</span></div>'}).join(""); }
+  var startBtn='<button class="btn primary full" onclick="startBroadcastPrompt()">'+ic("radio","sm")+' ابدأ بثًّا في دائرتك</button>';
+  var compose='<div class="card"><div class="composepulse"><div class="av" style="width:38px;height:38px">'+avatarInner(M.profile)+'</div><input id="pulsein" placeholder="شارك نبضة مع دائرتك..." onkeydown="if(event.key===\'Enter\')addPulse()"/><button class="cb mini" onclick="pulseImage()" title="صورة">'+ic("image","sm")+'</button><button class="cb" onclick="addPulse()">'+ic("send","sm")+'</button></div><input type="file" id="pulseImg" accept="image/*" style="display:none" onchange="onPulseImg(event)"/></div>';
+  var feed=M.pulses.length?M.pulses.map(pulseCard).join(""):'<div class="empty">لا نبضات بعد. كن أول من يشارك لحظة صادقة مع دائرته 🟣</div>';
+  return '<div class="shead" style="margin-top:0"><h3>'+ic("circle","sm")+' حضور الدائرة</h3><span class="badge">'+(on.length+1)+' متّصل</span></div>'
+    +strip
+    +(bc?'<div class="shead"><h3>'+ic("radio","sm")+' بثّ مباشر</h3></div>'+bc:'')
+    +'<div style="margin:8px 0 14px">'+startBtn+'</div>'
+    +'<div class="shead"><h3>نبض الدائرة</h3><button class="chip" onclick="go(\'qid\')">'+ic("qr","sm")+' دعوة</button></div>'
+    +compose+feed;
+}
+function pulseCard(p){
+  var mine=p.author_id===M.me.id;
+  var media=p.kind==="image"?'<img class="pulseimg" src="'+esc(p.body)+'" onclick="window.open(this.src,\'_blank\')"/>':('<div class="pulsetext">'+esc(p.body)+'</div>');
+  var del=mine?'<button class="pulsedel" onclick="delPulse(\''+p.id+'\')">'+ic("trash","sm")+'</button>':'';
+  var reacted=p.mine?' on':'';
+  return '<div class="card pulse"><div class="row" style="padding:0 0 8px;border:0"><div class="av" style="width:40px;height:40px">'+avatarInner(p)+'</div><div class="grow"><div class="nm">'+esc(p.display_name)+(mine?' <span class="mut">(أنت)</span>':'')+'</div><div class="mut">'+fmtLeft(p.expires_at)+'</div></div>'+del+'</div>'+media
+    +'<div class="pulsefoot"><button class="reactbtn'+reacted+'" onclick="reactPulse(\''+p.id+'\',\'❤️\')">'+ic("heart","sm")+'<span>'+(p.reactions||0)+'</span></button>'
+    +'<div class="reactrow">'+["❤️","🔥","🌿","👏","😂"].map(function(e){return '<button onclick="reactPulse(\''+p.id+'\',\''+e+'\')" class="'+(p.mine===e?"on":"")+'">'+e+'</button>'}).join("")+'</div></div></div>';
+}
+window.startBroadcastPrompt=function(){
+  openModal('<div class="sheet"><div class="handle"></div><div class="shead" style="margin-top:0"><h3>'+ic("radio","sm")+' ابدأ بثًّا في الدائرة</h3></div><div class="mut" style="margin-bottom:10px;line-height:1.7">جلسة حضور لحظية يصل إشعارها لأفراد دائرتك فقط — «تعالوا نكون مع بعض الآن».</div><div class="field2"><label>عنوان البث</label><input id="bctitle" placeholder="مثال: نتكلم شوي 🌙"/></div><button class="btn primary full" onclick="doStartBroadcast()">'+ic("radio","sm")+' بدء البث</button><button class="btn soft full" onclick="closeModal()">إلغاء</button></div>');
+};
+window.doStartBroadcast=async function(){ var t=($("bctitle")&&$("bctitle").value||"").trim(); var r=await SB.rpc("start_broadcast",{p_title:t}); if(r.error){toast("تعذّر: "+r.error.message);return} closeModal(); await loadCircle(); joinBroadcast(r.data, M.profile.display_name, true, t||"جلسة في الدائرة"); };
+window.joinBroadcast=async function(id, host, mine, title){
+  M.bcId=id; M.bcHost=!!mine; M.bcTitle=title||"جلسة في الدائرة"; M.bcCount=0; M.bcComments=[]; M.screen="live";
+  await leaveBc();
+  M.bc=SB.channel("bc-"+id,{config:{presence:{key:M.me.id}}})
+    .on("presence",{event:"sync"},function(){ try{ var st=M.bc.presenceState(); M.bcCount=Object.keys(st).length; var c=$("bccount"); if(c)c.textContent=M.bcCount; }catch(e){} })
+    .on("broadcast",{event:"heart"},function(){ floatHeart(); })
+    .on("broadcast",{event:"comment"},function(p){ var d=p.payload||{}; M.bcComments.push(d); renderBcComments(); })
+    .on("broadcast",{event:"end"},function(){ if(!M.bcHost){ toast("انتهى البث"); leaveBroadcast(); } })
+    .subscribe(function(s){ if(s==="SUBSCRIBED"){ try{ M.bc.track({id:M.me.id,name:M.profile.display_name}); }catch(e){} } });
+  render();
+};
+async function leaveBc(){ if(M.bc){ try{await SB.removeChannel(M.bc);}catch(e){} M.bc=null; } }
+window.leaveBroadcast=async function(){ await leaveBc(); M.bcId=null; M.screen="circle"; await loadCircle(); render(); };
+window.endBroadcast=async function(){ if(!M.bcId)return; try{ M.bc&&M.bc.send({type:"broadcast",event:"end",payload:{}}); }catch(e){} await SB.rpc("end_broadcast",{p_id:M.bcId}); await leaveBroadcast(); toast("أُنهي البث"); };
+window.sendHeart=function(){ floatHeart(); try{ M.bc&&M.bc.send({type:"broadcast",event:"heart",payload:{}}); }catch(e){} };
+window.sendBcComment=function(){ var i=$("bccmt"); var v=(i&&i.value||"").trim(); if(!v)return; i.value=""; var d={name:M.profile.display_name,body:v}; M.bcComments.push(d); renderBcComments(); try{ M.bc&&M.bc.send({type:"broadcast",event:"comment",payload:d}); }catch(e){} };
+function renderBcComments(){ var el=$("bccmts"); if(!el)return; el.innerHTML=M.bcComments.slice(-40).map(function(d){return '<div class="bccmt"><b>'+esc(d.name)+'</b> '+esc(d.body)+'</div>'}).join(""); el.scrollTop=el.scrollHeight; }
+function floatHeart(){ var w=$("bchearts"); if(!w)return; var s=document.createElement("span"); s.className="fheart"; s.textContent=["❤️","🧡","💚","💛","🩵"][Math.floor(Math.random()*5)]; s.style.left=(10+Math.random()*70)+"%"; w.appendChild(s); setTimeout(function(){ s.remove(); },2600); }
+function scrLive(){
+  return '<div class="livewrap">'
+    +'<div class="livehdr"><button class="chip" onclick="leaveBroadcast()">'+ic("back","sm")+'</button><div class="grow"><div class="nm" style="font-size:16px">'+esc(M.bcTitle)+'</div><div class="mut"><span class="livedot">●</span> بث مباشر · <span id="bccount">1</span> حاضر</div></div>'+(M.bcHost?'<button class="chip danger" onclick="endBroadcast()">إنهاء</button>':'')+'</div>'
+    +'<div class="livestage"><div class="bcorb">'+ic("radio")+'</div><div class="bchearts" id="bchearts"></div><div class="bcwho">'+(M.bcHost?"أنت تبثّ الآن":"أنت في البث")+'</div></div>'
+    +'<div class="bccmts" id="bccmts"></div>'
+    +'<div class="composer"><button class="cb ghost" onclick="sendHeart()" title="قلب">'+ic("heart","sm")+'</button><input id="bccmt" placeholder="علّق في اللحظة..." onkeydown="if(event.key===\'Enter\')sendBcComment()"/><button class="cb" onclick="sendBcComment()">'+ic("send","sm")+'</button></div>'
+    +'</div>';
+}
+function liveAfterRender(){ renderBcComments(); }
 function scrFriends(){
   var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+avatarInner(r.profile)+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+(r.profile.username?'@'+esc(r.profile.username):esc(r.source||""))+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
   var q=(M.fSearch||"").trim().toLowerCase();
