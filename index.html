@@ -4,7 +4,10 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>PQN — دائرتك الخاصة</title>
-<meta name="theme-color" content="#0B1320"/>
+<meta name="theme-color" content="#0E7A5F"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <style>
@@ -18,7 +21,7 @@
   --line:#E3EAE6;
   --soft:0 1px 2px rgba(8,20,15,.05),0 6px 22px rgba(8,20,15,.06);
   --shadow:0 22px 60px rgba(8,20,15,.22);
-  --r:20px;--r2:14px;--font:"SF Arabic","Segoe UI","Noto Sans Arabic",Tahoma,system-ui,sans-serif;
+  --r:20px;--r2:14px;--font:"Tajawal","SF Arabic","Segoe UI","Noto Sans Arabic",Tahoma,system-ui,sans-serif;
   color-scheme:light}
 body.dark{
   --bg:#060F0B;--surface:#0D1813;--surface2:#13211B;--text:#E9F2EE;--muted:#90A69B;
@@ -101,8 +104,8 @@ body.dark .badge{color:var(--gold2)}
 /* rows */
 .row{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
-.av{width:52px;height:52px;border-radius:17px;display:grid;place-items:center;font-weight:800;font-size:19px;color:#fff;background:linear-gradient(135deg,var(--em),var(--em2));flex:0 0 auto;position:relative;overflow:visible}
-.av.g{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#3A2C00}
+.av{width:52px;height:52px;border-radius:17px;display:grid;place-items:center;font-weight:800;font-size:19px;color:#fff;background:var(--em);flex:0 0 auto;position:relative;overflow:visible}
+.av.g{background:var(--gold);color:#3A2C00}
 .av img{width:100%;height:100%;border-radius:inherit;object-fit:cover}
 .nm{font-weight:800;font-size:15.5px;letter-spacing:-.2px}.mut{color:var(--muted);font-size:13px;margin-top:3px}
 .pin{direction:ltr;display:inline-block;padding:12px 20px;border-radius:13px;background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--gold2);font-weight:800;letter-spacing:2px;font-size:20px;cursor:pointer}
@@ -170,7 +173,7 @@ body.dark .tabs .tab.on{color:var(--em2)}
 .bub.me .mut,.bub.me .t{color:rgba(255,255,255,.82)}
 .bub .sn{display:block;font-size:11px;font-weight:800;color:var(--emdeep);margin-bottom:3px}
 body.dark .bub .sn{color:var(--em2)}
-.bub .t{display:block;font-size:10.5px;color:var(--muted);margin-top:5px;text-align:end}
+.bub .t{display:block;font-size:11px;color:var(--muted);margin-top:5px;text-align:end}
 .bub .quote{display:block;border-inline-start:3px solid currentColor;opacity:.85;padding:5px 9px;border-radius:8px;font-size:12px;margin-bottom:6px;background:rgba(0,0,0,.05);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bub.me .quote{background:rgba(255,255,255,.16)}
 .bub .lock{display:inline-flex;vertical-align:middle;margin-inline-end:4px;opacity:.7}
@@ -246,7 +249,7 @@ body.recording .cb.rec{background:var(--rose);color:#fff;animation:pulse 1.1s in
 
 /* ===== bottom nav ===== */
 .nav{flex:0 0 auto;display:grid;background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);border-top:.5px solid var(--line);padding:9px 6px calc(9px + env(safe-area-inset-bottom))}
-.nav button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border-radius:14px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.1px;transition:color .2s,transform .12s;position:relative}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border-radius:14px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.1px;transition:color .2s,transform .12s;position:relative}
 .nav button:active{transform:scale(.9)}
 .nav button .icn{width:26px;height:26px;stroke-width:1.5;transition:.2s}
 .nav button.on{color:var(--em)}
@@ -267,11 +270,26 @@ body.dark .nav button.on .icn{stroke:var(--em2)}
 .sheet{width:100%;max-width:600px;background:var(--surface);border-radius:28px 28px 0 0;padding:20px;box-shadow:var(--shadow);animation:slideup .32s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow-y:auto;border-top:3px solid color-mix(in srgb,var(--gold) 50%,transparent)}
 @keyframes slideup{from{transform:translateY(70px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .handle{width:44px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 16px}
+.onb{text-align:center;padding:18px 22px 24px}
+.onbic{width:78px;height:78px;border-radius:24px;margin:6px auto 18px;display:grid;place-items:center;background:linear-gradient(150deg,color-mix(in srgb,var(--em) 16%,transparent),color-mix(in srgb,var(--gold) 18%,transparent));color:var(--em)}
+.onbic .icn{width:36px;height:36px;stroke:var(--em);stroke-width:1.7}
+.onbt{margin:0 0 10px;font-size:23px;font-weight:900;letter-spacing:-.4px}
+.onbd{margin:0 0 20px;color:var(--muted);font-size:15px;line-height:1.85}
+.odots{display:flex;gap:7px;justify-content:center;margin-bottom:20px}
+.odot{width:8px;height:8px;border-radius:50%;background:var(--line);transition:.2s}
+.odot.on{width:22px;border-radius:99px;background:var(--gold)}
+.emptybox{text-align:center;padding:40px 20px}
+.emptybox .ei{width:64px;height:64px;border-radius:20px;margin:0 auto 14px;display:grid;place-items:center;background:var(--surface2);color:var(--muted)}
+.emptybox .ei .icn{width:30px;height:30px;stroke:var(--muted)}
+.emptybox .et{font-weight:800;font-size:16px;margin-bottom:6px}
+.emptybox .ed{color:var(--muted);font-size:13.5px;line-height:1.7;max-width:280px;margin:0 auto}
+.enchint{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.enchint .icn{width:12px;height:12px;stroke:var(--gold)}
 
 /* ===== misc ===== */
 .unread{position:absolute;top:-3px;right:-3px;min-width:21px;height:21px;padding:0 6px;border-radius:99px;background:var(--rose);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;border:2.5px solid var(--surface)}
 .unread.inline{position:static;display:inline-grid;border:0;vertical-align:middle;margin-inline-start:7px;height:19px}
-.rowtime{font-size:11px;color:var(--muted);flex:0 0 auto;align-self:flex-start;margin-top:3px}
+.rowtime{font-size:11.5px;color:var(--muted);flex:0 0 auto;align-self:flex-start;margin-top:3px}
 .av.big{width:96px;height:96px;font-size:38px;border-radius:30px}
 .avwrap{position:relative;width:96px;margin:0 auto}
 .avedit{position:absolute;bottom:-3px;left:-3px;width:34px;height:34px;border-radius:50%;background:var(--em);color:#fff;border:3px solid var(--surface);display:grid;place-items:center}
@@ -562,8 +580,27 @@ async function enter(){
   if(r.error){ $("enterBtn").textContent="ادخل"; $("enterBtn").disabled=false; if((r.error.message||"").toLowerCase().indexOf("anonymous")>=0||r.error.status===422)toast("الدخول المباشر غير مفعّل بعد على الخادم."); else toast("تعذّر الدخول: "+r.error.message); return; }
   var c=await SB.rpc("claim_username",{p_username:name});
   if(c.error||!c.data||!c.data.ok){ var rs=c.data&&c.data.reason; $("enterBtn").textContent="ادخل"; $("enterBtn").disabled=false; toast(rs==="taken"?"هذا الاسم محجوز، جرّب اسمًا آخر":(rs==="short"?"الاسم قصير جدًا":"تعذّر تثبيت الاسم")); try{await SB.auth.signOut();}catch(e){} M.me=null; return; }
-  await boot(); askNotify();
+  await boot(); askNotify(); maybeOnboard();
 }
+function maybeOnboard(){ if(localStorage.getItem("pqn_onboarded")==="1") return; setTimeout(function(){ onboardStep(0); }, 600); }
+var ONB=[
+  {ic:"circle",t:"دائرتك الخاصة",d:"PQN ليست شبكة مفتوحة. هي دائرة صغيرة من العائلة والأصدقاء الذين تثق بهم — بلا غرباء، بلا ضجيج، بلا متابعين."},
+  {ic:"lock",t:"خصوصية حقيقية",d:"محادثاتك المباشرة تُشفّر طرفًا‑إلى‑طرف تلقائيًا (لا يقرؤها الخادم). تظهر علامة قفل ذهبية حين يكون التشفير فعّالًا."},
+  {ic:"plus",t:"كيف تبدأ؟",d:"شارك اسمك المميّز @ أو رقمك (PIN) مع من تثق به ليضيفك، أو أضِفه أنت برقمه. لا بحث عام عنك أبدًا."}
+];
+window.onboardStep=function(i){
+  if(i>=ONB.length){ localStorage.setItem("pqn_onboarded","1"); closeModal(); toast("أهلًا بك في دائرتك 🌿"); return; }
+  var s=ONB[i]; var dots=ONB.map(function(_,k){return '<span class="odot'+(k===i?" on":"")+'"></span>'}).join("");
+  var last=i===ONB.length-1;
+  openModal('<div class="sheet onb"><div class="handle"></div>'
+    +'<div class="onbic">'+ic(s.ic,"lg")+'</div>'
+    +'<h2 class="onbt">'+s.t+'</h2>'
+    +'<p class="onbd">'+s.d+'</p>'
+    +'<div class="odots">'+dots+'</div>'
+    +'<button class="btn primary full" onclick="onboardStep('+(i+1)+')">'+(last?"ابدأ الآن":"التالي")+'</button>'
+    +(last?'':'<button class="btn soft full" style="margin-top:8px" onclick="onboardStep('+ONB.length+')">تخطٍّ</button>')
+    +'</div>');
+};
 
 SB.auth.onAuthStateChange(function(_e,s){ if(s&&!M.me) boot(); else if(!s) showAuth() });
 (async function(){ var r=await SB.auth.getSession(); if(r.data.session) boot(); else showAuth() })();
@@ -792,7 +829,7 @@ function render(){
   var active=(M.screen==="chat")?"friends":(M.screen==="live"?"circle":M.screen); var items=navItems();
   var nav=$("nav"); nav.style.gridTemplateColumns="repeat("+items.length+",1fr)";
   var totalUnread=0; for(var k in M.unread){ totalUnread+=(M.unread[k]||0); }
-  nav.innerHTML=items.map(function(n){ var bdg=(n[0]==="friends"&&totalUnread>0)?'<span class="navbadge">'+(totalUnread>99?"99+":totalUnread)+'</span>':''; return '<button class="'+(active===n[0]?"on":"")+'" onclick="go(\''+n[0]+'\')"><span class="navic">'+ic(n[2])+bdg+'</span><span>'+n[1]+'</span></button>'}).join("");
+  nav.innerHTML=items.map(function(n){ var bdg=(n[0]==="friends"&&totalUnread>0)?'<span class="navbadge">'+(totalUnread>99?"99+":totalUnread)+'</span>':''; return '<button aria-label="'+n[1]+'" class="'+(active===n[0]?"on":"")+'" onclick="go(\''+n[0]+'\')"><span class="navic">'+ic(n[2])+bdg+'</span><span>'+n[1]+'</span></button>'}).join("");
   var map={circle:scrCircle,friends:scrFriends,groups:scrGroups,chat:scrChat,qid:scrQid,profile:scrProfile,settings:scrSettings,live:scrLive};
   $("screen").innerHTML=(map[M.screen]||scrCircle)();
   if(M.screen==="chat") thread();
@@ -895,7 +932,7 @@ function scrFriends(){
   // صفّ علوي: المتّصلون الآن ثم الأحدث (وصول سريع)
   var quick=M.friends.slice().sort(function(a,b){ var oa=M.online[a.id]?1:0, ob=M.online[b.id]?1:0; if(oa!==ob)return ob-oa; return (b.last_at?Date.parse(b.last_at):0)-(a.last_at?Date.parse(a.last_at):0); }).slice(0,10);
   var strip = (M.friends.length>=3 && !q) ? ('<div class="livestrip">'+quick.map(function(f){var on=M.online[f.id];return '<div class="livecell" onclick="openChat(\''+f.id+'\')"><div class="avring '+(on?"on":"")+'"><div class="av">'+avatarInner(f)+'</div></div><span>'+esc((f.display_name||"").split(" ")[0])+'</span></div>'}).join("")+'</div>') : "";
-  var body = flist.length ? (q ? '<div class="card">'+flist.map(friendRow).join("")+'</div>' : friendSections(flist)) : '<div class="empty">'+(q?"لا نتائج بحث.":"لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.")+'</div>';
+  var body = flist.length ? (q ? '<div class="card">'+flist.map(friendRow).join("")+'</div>' : friendSections(flist)) : (q?'<div class="empty">لا نتائج بحث.</div>':'<div class="emptybox"><div class="ei">'+ic("users","lg")+'</div><div class="et">دائرتك فارغة الآن</div><div class="ed">شارك اسمك المميّز @ أو رقمك (PIN) مع من تثق به ليضيفك، أو أضِفه أنت برقمه من الأعلى.</div></div>');
   var searchBox=M.friends.length>5?'<div class="addbar"><input id="fsearch" placeholder="ابحث في أصدقائك" value="'+esc(M.fSearch||"")+'" oninput="setFSearch(this.value)"/><button class="cb mini" style="background:transparent">'+ic("search","sm")+'</button></div>':"";
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">'+ic("plus")+'</button></div>'
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
@@ -942,19 +979,20 @@ function scrChat(){
   var headAv = M.isGroup ? ('<div class="av g" style="width:36px;height:36px;font-size:15px">'+esc(ini(M.friend.display_name))+'</div>') : ('<div class="av" style="width:36px;height:36px;font-size:15px">'+avatarInner(who||M.friend)+'</div>');
   var encBadge = (!M.isGroup && M.peerKey) ? '<span class="encb" onclick="event.stopPropagation();showTrust()" title="مشفّر طرف-إلى-طرف">'+ic("lock","sm")+'</span>' : "";
   var sumBtn = '<button class="chip" onclick="toggleChatSearch()" title="بحث">'+ic("search","sm")+'</button><button class="chip" onclick="summarize()" title="ملخّص">'+ic("info","sm")+'</button>';
-  var hint = M.isGroup ? "اضغط لعرض أعضاء المجموعة" : "اضغط لعرض الملف الشخصي";
+  var hint = M.isGroup ? "اضغط لعرض أعضاء المجموعة" : (M.peerKey ? "اضغط لعرض الملف الشخصي" : "");
+  var encLine = (!M.isGroup && !M.peerKey) ? '<div class="enchint">'+ic("lock","sm")+'يُفعّل التشفير عندما يفتح صديقك التطبيق</div>' : '<div class="mut idhint" style="font-size:10.5px;display:flex;align-items:center;gap:3px">'+hint+ic("chev","sm")+'</div>';
   var searchRow = M.searchOpen ? '<div class="addbar" style="margin:0 0 8px"><input id="csearch" placeholder="ابحث في هذه المحادثة" value="'+esc(M.inSearch||"")+'" oninput="setInSearch(this.value)"/><button class="cb mini" style="background:transparent" onclick="toggleChatSearch()">'+ic("close","sm")+'</button></div>' : "";
   return '<div class="chatwrap">'
-    +'<div class="chathead"><button class="chip" onclick="go(\'friends\')">'+ic("back","sm")+'</button>'
-      +'<button class="idbtn"'+(det?(' onclick="'+det+'"'):'')+'>'+headAv+'<div style="text-align:start;min-width:0"><div class="nm" style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px">'+esc(M.friend.display_name)+encBadge+'</div><div class="mut" id="typing" style="font-size:10.5px;color:var(--teal);display:none">يكتب الآن…</div><div class="mut idhint" style="font-size:10px;display:flex;align-items:center;gap:3px">'+hint+ic("chev","sm")+'</div></div></button>'+sumBtn+'</div>'
+    +'<div class="chathead"><button aria-label="رجوع" class="chip" onclick="go(\'friends\')">'+ic("back","sm")+'</button>'
+      +'<button class="idbtn"'+(det?(' onclick="'+det+'"'):'')+'>'+headAv+'<div style="text-align:start;min-width:0"><div class="nm" style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px">'+esc(M.friend.display_name)+encBadge+'</div><div class="mut" id="typing" style="font-size:10.5px;color:var(--em);display:none">يكتب الآن…</div>'+encLine+'</div></button>'+sumBtn+'</div>'
     +searchRow
     +'<div class="thread" id="thread"></div>'
     +'<div class="emoji" id="emoji">'+EMO.map(function(e){return '<button onclick="addEmoji(\''+e+'\')">'+e+'</button>'}).join("")+'</div>'
     +'<div class="replybar" id="replybar" style="display:none"><span class="rp"></span><button onclick="clearReply()">✕</button></div>'
     +'<div class="composer">'
-      +'<button class="cplus'+(M.ttl!==0?" act":"")+'" onclick="attachMenu()" title="إضافة">'+ic("plus")+'</button>'
-      +'<div class="cwrap"><input id="mi" placeholder="رسالة" oninput="sendTyping()" onkeydown="if(event.key===\'Enter\')sendMsg()"/><button class="cemoji" onclick="toggleEmoji()" title="إيموجي">'+ic("smile","sm")+'</button></div>'
-      +'<button class="csend" onclick="sendMsg()" title="إرسال">'+ic("up","sm")+'</button>'
+      +'<button aria-label="إضافة مرفقات" class="cplus'+(M.ttl!==0?" act":"")+'" onclick="attachMenu()" title="إضافة">'+ic("plus")+'</button>'
+      +'<div class="cwrap"><input id="mi" placeholder="رسالة" aria-label="نص الرسالة" oninput="sendTyping()" onkeydown="if(event.key===\'Enter\')sendMsg()"/><button aria-label="إيموجي" class="cemoji" onclick="toggleEmoji()" title="إيموجي">'+ic("smile","sm")+'</button></div>'
+      +'<button aria-label="إرسال" class="csend" onclick="sendMsg()" title="إرسال">'+ic("up","sm")+'</button>'
     +'</div>'
     +'<input type="file" id="imgInput" accept="image/*" style="display:none" onchange="onImagePicked(event)"/>'
     +'</div>';
