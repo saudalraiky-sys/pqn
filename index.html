@@ -136,6 +136,16 @@ body.dark .chip.secondary{color:var(--teal2)}
 .qs span{font-size:11.5px;color:var(--muted)}
 .qs.alert{border-color:color-mix(in srgb,var(--amber) 50%,var(--line))}
 .qs.alert b,.qs.alert .icn{color:var(--amber);stroke:var(--amber)}
+.tabs{display:flex;gap:8px;background:var(--surface2);border-radius:14px;padding:5px;margin-bottom:16px}
+.tabs .tab{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px;border-radius:10px;font-size:14px;font-weight:700;color:var(--muted);background:transparent;transition:.18s}
+.tabs .tab .icn{width:18px;height:18px;stroke:var(--muted)}
+.tabs .tab.on{background:var(--surface);color:var(--tealdeep);box-shadow:var(--soft)}
+.tabs .tab.on .icn{stroke:var(--teal)}
+body.dark .tabs .tab.on{color:var(--teal2)}
+.ondot{position:absolute;bottom:-1px;left:-1px;width:14px;height:14px;border-radius:50%;background:#2ECC71;border:2.5px solid var(--surface)}
+.row.unr .nm{color:var(--tealdeep)}
+body.dark .row.unr .nm{color:var(--teal2)}
+.row.unr .mut{color:var(--text);font-weight:600}
 
 /* ===== add bar ===== */
 .addbar{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:7px 7px 7px 7px;margin-bottom:18px}
@@ -558,7 +568,7 @@ function startLive(){
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"requester_id=eq."+M.me.id},function(){ refreshAll(true); })
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){ var m=p.new; if(m.sender_id===M.me.id) return; if(M.screen==="chat"&&m.conversation_id===M.conv) return; var fr=M.friends.find(function(x){return x.id===m.sender_id}); var who=(fr&&fr.display_name)||"رسالة"; M.unread[m.sender_id]=(M.unread[m.sender_id]||0)+1; if(fr){ fr.last_at=m.created_at||new Date().toISOString(); sortFriends(); } if(M.screen==="friends") render(); var q=quietActive()||convMuted(m.conversation_id); if(m.kind==="ping"){ if(!q)pingAlert(); inAppNote("📳 "+who, "نبّهك بتنبيه", m.conversation_id, who); if(!q)notify("📳 "+who,"نبّهك", m.sender_id); } else { if(!q){buzz([45]); playBlip();} var prev=m.kind==="image"?"📷 صورة":(m.kind==="voice"?"🎤 رسالة صوتية (مرة واحدة)":(m.enc?"🔒 رسالة مشفّرة":(m.body||"رسالة جديدة"))); var cnt=M.unread[m.sender_id]; inAppNote("📨 "+who+(cnt>1?" ("+cnt+")":""), prev, m.conversation_id, who); if(!q)notify(who+(cnt>1?" ("+cnt+" رسائل)":""), prev, m.sender_id); } })
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"broadcasts"},function(p){ var b=p.new; if(!b||!b.active||b.host_id===M.me.id) return; var fr=M.friends.find(function(x){return x.id===b.host_id}); if(!fr) return; if(!quietActive()){ pingAlert(); } inAppNote("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة", null, null); notify("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة"); loadCircle().then(function(){ if(M.screen==="circle") render(); }); })
-    .on("presence",{event:"sync"},function(){ try{ var st=M.live.presenceState(); var seen={}; for(var k in st){ (st[k]||[]).forEach(function(m){ if(m&&m.id) seen[m.id]=true; }); } M.online=seen; if(M.screen==="circle") render(); }catch(e){} })
+    .on("presence",{event:"sync"},function(){ try{ var st=M.live.presenceState(); var seen={}; for(var k in st){ (st[k]||[]).forEach(function(m){ if(m&&m.id) seen[m.id]=true; }); } M.online=seen; if(M.screen==="circle"||M.screen==="friends") render(); }catch(e){} })
     .subscribe(function(s){ if(s==="SUBSCRIBED"){ try{ M.live.track({id:M.me.id,name:(M.profile&&M.profile.display_name)||"مستخدم"}); }catch(e){} } });
   document.addEventListener("visibilitychange", function(){ if(!document.hidden && M.me) autoTick(); });
 }
@@ -803,43 +813,75 @@ function scrLive(){
     +'</div>';
 }
 function liveAfterRender(){ renderBcComments(); }
+function friendRow(f){ var u=M.unread[f.id]||0; var on=!!M.online[f.id]; var ub=u>0?'<span class="unread">'+u+'</span>':''; var od=on?'<span class="ondot"></span>':''; var prev=f.last_kind==="ping"?"📳 تنبيه":(f.last_kind==="image"?"📷 صورة":(f.last_kind==="voice"?"🎤 رسالة صوتية":(f.last_body||""))); var sub=prev?esc(prev.length>38?prev.slice(0,38)+"…":prev):(on?'<span style="color:var(--teal)">متّصل الآن</span>':(f.username?'@'+esc(f.username):esc(f.status||""))); var tt=f.last_at?'<span class="rowtime">'+tm(f.last_at)+'</span>':''; return '<div class="row'+(u>0?' unr':'')+'" onclick="openChat(\''+f.id+'\')"><div class="av">'+avatarInner(f)+od+ub+'</div><div class="grow"><div class="nm">'+esc(f.display_name)+(u>0?' <span class="unread inline">'+u+'</span>':'')+'</div><div class="mut">'+sub+'</div></div>'+tt+'<button class="chip ping" onclick="event.stopPropagation();pingFriend(\''+f.id+'\')" title="تنبيه">'+ic("bell","sm")+'</button></div>'; }
+function friendSections(list){
+  var now=Date.now(), DAY=86400e3;
+  var startToday=new Date(); startToday.setHours(0,0,0,0); startToday=startToday.getTime();
+  var buckets={unread:[],now:[],today:[],week:[],older:[]};
+  list.forEach(function(f){
+    var u=M.unread[f.id]||0; var on=!!M.online[f.id]; var t=f.last_at?Date.parse(f.last_at):0;
+    if(u>0) buckets.unread.push(f);
+    else if(on) buckets.now.push(f);
+    else if(t>=startToday) buckets.today.push(f);
+    else if(t>=now-7*DAY && t>0) buckets.week.push(f);
+    else buckets.older.push(f);
+  });
+  var order=[["unread","غير مقروء","🔵"],["now","متّصل الآن","🟢"],["today","اليوم",""],["week","هذا الأسبوع",""],["older","أقدم",""]];
+  var html="";
+  order.forEach(function(s){ var arr=buckets[s[0]]; if(!arr.length)return;
+    arr.sort(function(a,b){ return (b.last_at?Date.parse(b.last_at):0)-(a.last_at?Date.parse(a.last_at):0); });
+    html+='<div class="shead"><h3>'+(s[2]?s[2]+' ':'')+s[1]+'</h3><span class="badge">'+arr.length+'</span></div><div class="card">'+arr.map(friendRow).join("")+'</div>';
+  });
+  return html;
+}
 function scrFriends(){
   var reqs=M.requests.map(function(r){return '<div class="row"><div class="av">'+avatarInner(r.profile)+'</div><div class="grow"><div class="nm">'+esc(r.profile.display_name)+'</div><div class="mut">'+(r.profile.username?'@'+esc(r.profile.username):esc(r.source||""))+'</div></div><div class="acts"><button class="chip on" onclick="acceptReq(\''+r.id+'\')">قبول</button><button class="chip" onclick="declineReq(\''+r.id+'\')">رفض</button></div></div>'}).join("");
   var q=(M.fSearch||"").trim().toLowerCase();
   var flist=q?M.friends.filter(function(f){return ((f.display_name||"").toLowerCase().indexOf(q)>=0)||((f.username||"").toLowerCase().indexOf(q)>=0)}):M.friends;
-  var fr=flist.length?flist.map(function(f){var u=M.unread[f.id]||0;var ub=u>0?'<span class="unread">'+u+'</span>':'';var prev=f.last_kind==="ping"?"📳 تنبيه":(f.last_kind==="image"?"📷 صورة":(f.last_kind==="voice"?"🎤 رسالة صوتية":(f.last_body||"")));var sub=prev?esc(prev.length>38?prev.slice(0,38)+"…":prev):(f.username?'@'+esc(f.username):esc(f.status||""));var tt=f.last_at?'<span class="rowtime">'+tm(f.last_at)+'</span>':'';return '<div class="row" onclick="openChat(\''+f.id+'\')"><div class="av">'+avatarInner(f)+ub+'</div><div class="grow"><div class="nm">'+esc(f.display_name)+(u>0?' <span class="unread inline">'+u+'</span>':'')+'</div><div class="mut">'+sub+'</div></div>'+tt+'<button class="chip ping" onclick="event.stopPropagation();pingFriend(\''+f.id+'\')" title="تنبيه">'+ic("bell","sm")+'</button></div>'}).join(""):'<div class="empty">'+(q?"لا نتائج بحث.":"لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.")+'</div>';
+  // صفّ علوي: المتّصلون الآن ثم الأحدث (وصول سريع)
+  var quick=M.friends.slice().sort(function(a,b){ var oa=M.online[a.id]?1:0, ob=M.online[b.id]?1:0; if(oa!==ob)return ob-oa; return (b.last_at?Date.parse(b.last_at):0)-(a.last_at?Date.parse(a.last_at):0); }).slice(0,10);
+  var strip = (M.friends.length>=3 && !q) ? ('<div class="livestrip">'+quick.map(function(f){var on=M.online[f.id];return '<div class="livecell" onclick="openChat(\''+f.id+'\')"><div class="avring '+(on?"on":"")+'"><div class="av">'+avatarInner(f)+'</div></div><span>'+esc((f.display_name||"").split(" ")[0])+'</span></div>'}).join("")+'</div>') : "";
+  var body = flist.length ? (q ? '<div class="card">'+flist.map(friendRow).join("")+'</div>' : friendSections(flist)) : '<div class="empty">'+(q?"لا نتائج بحث.":"لا أصدقاء بعد. شارك اسمك المميّز @ أو رقمك (PIN) ليضيفك أصدقاؤك، أو أضِفهم.")+'</div>';
   var searchBox=M.friends.length>5?'<div class="addbar"><input id="fsearch" placeholder="ابحث في أصدقائك" value="'+esc(M.fSearch||"")+'" oninput="setFSearch(this.value)"/><button class="cb mini" style="background:transparent">'+ic("search","sm")+'</button></div>':"";
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">'+ic("plus")+'</button></div>'
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
-    +'<div class="qstats">'
-      +'<button class="qs" onclick="go(\'qid\')">'+ic("users")+'<b>'+M.friends.length+'</b><span>أصدقاء</span></button>'
-      +'<button class="qs '+(M.requests.length?'alert':'')+'" onclick="refreshNow()">'+ic("bell")+'<b>'+M.requests.length+'</b><span>طلبات</span></button>'
-      +'<button class="qs" onclick="refreshNow()">'+ic("qr")+'<b>Q</b><span>هويتي</span></button>'
-    +'</div>'
     +(M.requests.length?'<div class="shead" style="margin-top:4px"><h3>طلبات واردة</h3><span class="badge">'+M.requests.length+'</span></div><div class="card">'+reqs+'</div>':"")
-    +'<div class="shead"><h3>أصدقائي</h3><span class="badge">'+M.friends.length+'</span></div>'+searchBox+'<div class="card">'+fr+'</div>';
+    +strip
+    +searchBox
+    +body;
 }
 function scrGroups(){
   if(!flag("groups_enabled")) return '<div class="strip warn">المجموعات معطّلة حاليًا من قِبل المالك.</div>';
-  var mine=M.groups.length?M.groups.map(function(g){var ns=esc(g.name).replace(/'/g,"");var roomTag=g.is_room?'<span class="chip warn">⏳ '+esc(fmtLeft(g.expires_at))+'</span>':'<span class="chip secondary">فتح</span>';var sub=g.is_room?("غرفة مؤقتة · "+g.members+" عضو"):((g.privacy==="public"?"عامة":"خاصة")+' · '+g.members+' عضو');return '<div class="row" onclick="openGroup(\''+g.conversation_id+'\',\''+ns+'\')"><div class="av g">'+(g.is_room?"⏳":esc(ini(g.name)))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')">'+esc(g.name)+'</div><div class="mut">'+sub+'</div></div>'+roomTag+'</div>'}).join(""):'<div class="empty">لست في أي مجموعة بعد.</div>';
-  var room='<div class="card"><div class="shead" style="margin-top:0"><h3>⏳ غرفة مؤقتة (Q-ROOM)</h3></div>'
-    +'<div class="mut" style="margin-bottom:8px">غرفة تختفي تلقائيًا بكل رسائلها عند انتهاء وقتها — مثالية للاجتماعات السريعة.</div>'
-    +'<div class="field2"><label>اسم الغرفة</label><input id="rname" placeholder="مثال: اجتماع اليوم"/></div>'
-    +'<div class="field2"><label>تنتهي بعد</label><select id="rmins"><option value="30">30 دقيقة</option><option value="60" selected>ساعة</option><option value="180">3 ساعات</option><option value="720">12 ساعة</option><option value="1440">24 ساعة</option></select></div>'
-    +'<button class="btn primary full" onclick="createRoom()">إنشاء غرفة مؤقتة</button></div>';
-  var pubOpt = flag("public_groups_enabled") ? '<option value="public">عامة — يراها الجميع وينضمون</option>' : '';
-  var create='<div class="card"><div class="shead" style="margin-top:0"><h3>إنشاء مجموعة</h3></div>'
+  var tab=M.gTab||"mine";
+  var pubOn=flag("public_groups_enabled");
+  var tabs='<div class="tabs"><button class="tab '+(tab==="mine"?"on":"")+'" onclick="setGTab(\'mine\')">'+ic("users","sm")+' مجموعاتي</button>'+(pubOn?'<button class="tab '+(tab==="public"?"on":"")+'" onclick="setGTab(\'public\')">'+ic("circle","sm")+' عامة</button>':'')+'</div>';
+  if(tab==="public" && pubOn){
+    var rows=M.pubGroups.length?M.pubGroups.map(function(g){var nmeName=esc(g.name).replace(/'/g,"");var act=g.joined?("openGroup('"+g.conversation_id+"','"+nmeName+"')"):("joinAndOpen('"+g.id+"','"+nmeName+"')");return '<div class="row" onclick="'+act+'"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')">'+esc(g.name)+'</div><div class="mut">'+esc(g.description||"")+' · '+g.members+' عضو</div></div>'+(g.joined?'<span class="chip secondary">فتح</span>':'<span class="chip on">انضمام</span>')+'</div>'}).join(""):'<div class="empty">لا مجموعات عامة بعد. كن أول من ينشئ واحدة من تبويب «مجموعاتي».</div>';
+    return tabs+'<div class="shead" style="margin-top:0"><h3>مجموعات عامة</h3><span class="badge">'+M.pubGroups.length+'</span></div><div class="card">'+rows+'</div>';
+  }
+  // tab mine
+  var rooms=M.groups.filter(function(g){return g.is_room});
+  var perm=M.groups.filter(function(g){return !g.is_room});
+  rooms.sort(function(a,b){return (a.expires_at?Date.parse(a.expires_at):0)-(b.expires_at?Date.parse(b.expires_at):0)});
+  var groupRow=function(g){var ns=esc(g.name).replace(/'/g,"");var sub=(g.privacy==="public"?"🌍 عامة":"🔒 خاصة")+' · '+g.members+' عضو';return '<div class="row" onclick="openGroup(\''+g.conversation_id+'\',\''+ns+'\')"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm">'+esc(g.name)+'</div><div class="mut">'+sub+'</div></div><button class="chip" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')" title="تفاصيل">'+ic("info","sm")+'</button></div>'};
+  var roomRow=function(g){var ns=esc(g.name).replace(/'/g,"");return '<div class="row" onclick="openGroup(\''+g.conversation_id+'\',\''+ns+'\')"><div class="av g" style="background:var(--amber)">'+ic("clock","sm")+'</div><div class="grow"><div class="nm">'+esc(g.name)+'</div><div class="mut">'+g.members+' عضو · '+esc(fmtLeft(g.expires_at))+'</div></div><span class="chip warn">⏳</span></div>'};
+  var roomsBlock=rooms.length?('<div class="shead" style="margin-top:0"><h3>⏳ غرف مؤقتة</h3><span class="badge">'+rooms.length+'</span></div><div class="card">'+rooms.map(roomRow).join("")+'</div>'):"";
+  var permBlock='<div class="shead"'+(rooms.length?'':' style="margin-top:0"')+'><h3>'+ic("users","sm")+' المجموعات</h3><span class="badge">'+perm.length+'</span></div><div class="card">'+(perm.length?perm.map(groupRow).join(""):'<div class="empty">لا مجموعات بعد. أنشئ واحدة بالأسفل أو انضمّ بكود.</div>')+'</div>';
+  var joinbar='<div class="addbar"><input id="gcode" placeholder="انضم بكود مجموعة: G-XXXXX" onkeydown="if(event.key===\'Enter\')joinByCode()"/><button class="cb" onclick="joinByCode()" title="انضمام">'+ic("plus")+'</button></div>';
+  var pubOpt = pubOn ? '<option value="public">عامة — يراها الجميع وينضمون</option>' : '';
+  var create='<div class="card"><div class="shead" style="margin-top:0"><h3>'+ic("plus","sm")+' إنشاء مجموعة</h3></div>'
     +'<div class="field2"><label>اسم المجموعة</label><input id="gname" placeholder="مثال: نادي الكتاب"/></div>'
     +'<div class="field2"><label>الخصوصية</label><select id="gpriv"><option value="private">خاصة — بالدعوة فقط</option>'+pubOpt+'</select></div>'
     +'<div class="field2"><label>وصف (اختياري)</label><input id="gdesc" placeholder="وصف مختصر"/></div>'
     +'<button class="btn primary full" onclick="createGroup()">إنشاء المجموعة</button></div>';
-  var pub="";
-  if(flag("public_groups_enabled")){
-    var rows=M.pubGroups.length?M.pubGroups.map(function(g){var nmeName=esc(g.name).replace(/'/g,"");var act=g.joined?("openGroup('"+g.conversation_id+"','"+nmeName+"')"):("joinAndOpen('"+g.id+"','"+nmeName+"')");return '<div class="row" onclick="'+act+'"><div class="av g">'+esc(ini(g.name))+'</div><div class="grow"><div class="nm" onclick="event.stopPropagation();groupDetails(\''+g.conversation_id+'\')">'+esc(g.name)+'</div><div class="mut">'+esc(g.description||"")+' · '+g.members+' عضو</div></div>'+(g.joined?'<span class="chip secondary">فتح</span>':'<span class="chip on">انضمام</span>')+'</div>'}).join(""):'<div class="empty">لا مجموعات عامة بعد. أنشئ واحدة!</div>';
-    pub='<div class="shead"><h3>مجموعات عامة</h3><span class="badge">'+M.pubGroups.length+'</span></div><div class="card">'+rows+'</div>';
-  }
-  return backBtn()+'<div class="addbar"><input id="gcode" placeholder="انضم بكود مجموعة: G-XXXXX" onkeydown="if(event.key===\'Enter\')joinByCode()"/><button class="cb" onclick="joinByCode()" title="انضمام">↳</button></div><div class="shead" style="margin-top:0"><h3>مجموعاتي</h3><span class="badge">'+M.groups.length+'</span></div><div class="card">'+mine+'</div>'+room+create+pub;
+  var room='<div class="card"><div class="shead" style="margin-top:0"><h3>'+ic("clock","sm")+' غرفة مؤقتة (Q-ROOM)</h3></div>'
+    +'<div class="mut" style="margin-bottom:10px">غرفة تختفي تلقائيًا بكل رسائلها عند انتهاء وقتها — للاجتماعات السريعة.</div>'
+    +'<div class="field2"><label>اسم الغرفة</label><input id="rname" placeholder="مثال: اجتماع اليوم"/></div>'
+    +'<div class="field2"><label>تنتهي بعد</label><select id="rmins"><option value="30">30 دقيقة</option><option value="60" selected>ساعة</option><option value="180">3 ساعات</option><option value="720">12 ساعة</option><option value="1440">24 ساعة</option></select></div>'
+    +'<button class="btn soft full" onclick="createRoom()">إنشاء غرفة مؤقتة</button></div>';
+  return tabs+joinbar+roomsBlock+permBlock+create+room;
 }
+window.setGTab=function(t){ M.gTab=t; render(); };
 function scrChat(){
   var det = M.isGroup ? ("groupDetails('"+M.conv+"')") : (M.friendId?("friendDetails('"+M.friendId+"')"):"");
   var who = M.isGroup ? null : M.friends.find(function(f){return f.id===M.friendId});
