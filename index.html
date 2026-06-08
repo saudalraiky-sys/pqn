@@ -24,12 +24,12 @@
   --r:20px;--r2:14px;--font:"Tajawal","SF Arabic","Segoe UI","Noto Sans Arabic",Tahoma,system-ui,sans-serif;
   color-scheme:light}
 body.dark{
-  --em:#D4AF37;--em2:#E8CE7A;--emdeep:#E8CE7A;
-  --gold:#D4AF37;--gold2:#E8CE7A;--golddeep:#E8CE7A;
-  --teal:#D4AF37;--teal2:#E8CE7A;--tealdeep:#E8CE7A;
+  --em:#D4AF37;--em2:#F0D9A6;--emdeep:#F0D9A6;
+  --gold:#D4AF37;--gold2:#F0D9A6;--golddeep:#F0D9A6;
+  --teal:#D4AF37;--teal2:#F0D9A6;--tealdeep:#F0D9A6;
   --onaccent:#14110A;
-  --bg:#0B0F0D;--surface:#141A16;--surface2:#1E2520;--text:#F2ECDD;--muted:#9A9384;
-  --line:#2C332E;--navy:#0B0F0D;
+  --bg:#0B0F0D;--surface:#14181B;--surface2:#1E2422;--text:#F2ECDD;--muted:#9A9384;
+  --line:#2A302D;--navy:#0F1A16;
   --soft:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.4);
   --shadow:0 22px 60px rgba(0,0,0,.6);
   color-scheme:dark}
@@ -43,9 +43,16 @@ svg{display:block}
 .icn.sm{width:18px;height:18px}.icn.lg{width:28px;height:28px}
 
 /* brand mark */
-.qmark{position:relative;width:42px;height:42px;border:3px solid var(--gold);border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 16%,transparent)}
-.qmark::after{content:"";position:absolute;bottom:5%;left:-12%;width:38%;height:13%;border-radius:99px;background:var(--gold);transform:rotate(42deg)}
-.qmark i{position:absolute;top:34%;width:13%;height:13%;border-radius:50%;background:var(--em2)}.qmark i:first-child{right:30%}.qmark i:last-child{right:52%}
+.qmark{position:relative;width:42px;height:42px;flex:0 0 auto;color:var(--gold);display:inline-block}
+.qmark .qlogo{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--gold) 45%,transparent))}
+.qmark .lring{transform-origin:50% 50%;animation:logoDraw 1.1s cubic-bezier(.3,.9,.3,1) both,logoGlow 3.2s ease-in-out 1.1s infinite}
+.qmark .ltail{stroke-dasharray:18;stroke-dashoffset:18;animation:tailIn .4s ease .85s forwards}
+.qmark .ldot{transform-origin:center;opacity:0;animation:dotPop .42s cubic-bezier(.3,1.4,.5,1) forwards}
+.qmark .d1{animation-delay:.7s}.qmark .d2{animation-delay:.82s}
+@keyframes logoDraw{from{stroke-dashoffset:240}to{stroke-dashoffset:0}}
+@keyframes tailIn{to{stroke-dashoffset:0}}
+@keyframes dotPop{0%{opacity:0;transform:scale(0)}100%{opacity:1;transform:scale(1)}}
+@keyframes logoGlow{0%,100%{filter:drop-shadow(0 0 2px color-mix(in srgb,var(--gold) 30%,transparent))}50%{filter:drop-shadow(0 0 9px color-mix(in srgb,var(--gold) 75%,transparent))}}
 
 /* ===== auth ===== */
 .center{min-height:100vh;display:grid;place-items:center;padding:26px;background:
@@ -414,7 +421,7 @@ const SB = createClient("https://dnocxanataaawgvdfaoj.supabase.co","sb_publishab
 const VAPID_PUBLIC="BPgIBMTrxjgsqJ7llZ2nuaGxWBPUwfg-zlZ0PlsOTerrRQODcZ64jRQ-A5pHQQ86T023cnUpVkv4QLgj4TBeJv4";
 const $ = function(id){return document.getElementById(id)};
 const M = { me:null, profile:null, friends:[], requests:[], qids:[], groups:[], pubGroups:[], suggestions:[], stats:null, recent:[], flags:{}, owner:false, screen:"friends", prev:"friends", conv:null, friend:null, isGroup:false, members:{}, msgs:[], chan:null, live:null, poll:null, booting:false, sig:"", unread:{} };
-const ACCENTS={gold:["#D4AF37","#E8CE7A","#9C7B14"],emerald:["#0E7A5F","#16A37C","#0A5240"],teal:["#27B8AE","#57D7CF","#0f6e56"],blue:["#3B82F6","#7DA9FB","#1E3A8A"],amber:["#D9A441","#EAC374","#8A5B00"],rose:["#C85C5C","#E08A8A","#7E3030"],purple:["#8B5CF6","#B49BFA","#4C2E91"]};
+const ACCENTS={gold:["#D4AF37","#F0D9A6","#9C7B14"],emerald:["#0E7A5F","#16A37C","#0A5240"],teal:["#27B8AE","#57D7CF","#0f6e56"],blue:["#3B82F6","#7DA9FB","#1E3A8A"],amber:["#D9A441","#EAC374","#8A5B00"],rose:["#C85C5C","#E08A8A","#7E3030"],purple:["#8B5CF6","#B49BFA","#4C2E91"]};
 
 function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function ini(n){return (n||"؟").trim().slice(0,1)}
@@ -538,6 +545,7 @@ window.setDark=function(v){localStorage.setItem("pqn_dark",v?"1":"0");applyTheme
 window.setThemeAuto=function(){localStorage.removeItem("pqn_dark");applyTheme();render();toast("يتبع نظام جهازك تلقائيًا")};
 window.setAccent=function(a){localStorage.setItem("pqn_accent",a);applyTheme();render();toast("تم تغيير اللون")};
 applyTheme();
+paintLogos(); setInterval(paintLogos,1500);
 var __pwaPrompt=null;
 window.addEventListener("beforeinstallprompt",function(e){ e.preventDefault(); __pwaPrompt=e; });
 window.installApp=async function(){
@@ -783,6 +791,8 @@ window.startEdit=function(id){ var m=M.msgs.find(function(x){return x.id===id});
 async function loadMutedMap(){ try{ var r=await SB.rpc("muted_convs"); M.mutedMap={}; (r.data||[]).forEach(function(x){ M.mutedMap[x.conversation_id]=x.muted_until; }); }catch(e){ M.mutedMap=M.mutedMap||{}; } }
 async function loadBlocks(){ try{ var r=await SB.rpc("my_blocks"); M.blocks={}; (r.data||[]).forEach(function(x){ M.blocks[x.blocked_id]=true; }); }catch(e){ M.blocks=M.blocks||{}; } }
 function logEvent(name,meta){ try{ SB.rpc("log_event",{p_name:name,p_meta:meta||{}}); }catch(e){} }
+const LOGO_SVG='<svg class="qlogo" viewBox="0 0 100 100" fill="none" aria-hidden="true"><circle class="lring" cx="50" cy="50" r="38" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="200 240" transform="rotate(28 50 50)"/><line class="ltail" x1="76.8" y1="73.2" x2="88" y2="84" stroke="currentColor" stroke-width="8" stroke-linecap="round"/><circle class="ldot d1" cx="40" cy="48" r="6" fill="currentColor"/><circle class="ldot d2" cx="60" cy="48" r="6" fill="currentColor"/></svg>';
+function paintLogos(){ try{ document.querySelectorAll(".qmark").forEach(function(el){ if(el.getAttribute("data-logo")!=="1"){ el.innerHTML=LOGO_SVG; el.setAttribute("data-logo","1"); } }); }catch(e){} }
 function isBlocked(id){ return M.blocks && M.blocks[id]; }
 window.blockUser=function(id,name){ openModal('<div class="sheet"><div class="handle"></div><div class="shead" style="margin-top:0"><h3>حظر '+esc(name||"")+'؟</h3></div><div class="mut" style="margin-bottom:14px;line-height:1.7">لن يستطيع مراسلتك أو إيجادك، وسيُزال من أصدقائك. يمكنك إلغاء الحظر لاحقًا من الإعدادات.</div><button class="btn danger full" onclick="doBlock(\''+id+'\')">تأكيد الحظر</button><button class="btn soft full" style="margin-top:8px" onclick="closeModal()">إلغاء</button></div>'); };
 window.doBlock=async function(id){ var r=await SB.rpc("block_user",{p_target:id}); if(r.error){toast("تعذّر الحظر: "+r.error.message);return} M.blocks[id]=true; M.friends=M.friends.filter(function(f){return f.id!==id}); logEvent("block"); closeModal(); go("friends"); toast("تم الحظر"); };
@@ -880,6 +890,7 @@ function render(){
   if(changed){ sc.classList.remove("swap"); void sc.offsetWidth; sc.classList.add("swap"); }
   if(M.screen==="chat") thread();
   if(M.screen==="live") liveAfterRender();
+  paintLogos();
 }
 async function loadCircle(){
   try{ var p=await SB.rpc("circle_pulses"); M.pulses=p.data||[]; }catch(e){ M.pulses=[]; }
