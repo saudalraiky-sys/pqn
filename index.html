@@ -497,7 +497,6 @@ window.loadOlder=async function(){
   M.msgs=older.concat(M.msgs); thread(true);
   if(el){ el.scrollTop = el.scrollHeight - prevH; }
 };
-}
 function scrQid(){
   var list=M.qids.filter(function(q){return !q.revoked}).map(function(q){return '<div class="row"><div class="av">🪪</div><div class="grow"><div class="nm" style="direction:ltr;cursor:pointer" onclick="copyText(\''+esc(q.code)+'\')">'+esc(q.code)+'</div><div class="mut">اضغط للنسخ · صالح 30 يومًا</div></div><button class="chip" onclick="killQid(\''+q.id+'\')">إلغاء</button></div>'}).join("")||'<div class="empty">لا هويات نشطة. أنشئ واحدة وشاركها.</div>';
   return backBtn()+'<div class="strip">🪪 أنشئ كودًا تشاركه مع من تريد إضافته. يكتبه في خانة «إضافة صديق» في صفحته الرئيسية فيصلك طلب صداقة. بديل أنيق عن مشاركة رقمك الدائم.</div><button class="btn primary full" onclick="makeQid()" style="margin-bottom:12px">إنشاء Q-ID جديد</button><div class="card">'+list+'</div>';
