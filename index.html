@@ -29,7 +29,7 @@ body{margin:0;font-family:var(--font);color:var(--text);min-height:100vh;font-si
 button,input,textarea,select{font:inherit;color:inherit}
 button{border:0;background:none;cursor:pointer}
 svg{display:block}
-.icn{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.icn{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 .icn.sm{width:18px;height:18px}.icn.lg{width:28px;height:28px}
 
 /* ===== auth ===== */
@@ -206,11 +206,20 @@ body.dark .pingmsg{color:var(--amber)}
 .encb{display:inline-flex;cursor:pointer;vertical-align:middle}
 .encb .icn{width:13px;height:13px;stroke:var(--tealdeep)}
 body.dark .encb .icn{stroke:var(--teal2)}
-.composer{display:flex;align-items:center;gap:7px;padding:9px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
-.composer input{border:0;outline:0;background:transparent;font-size:15px;padding:9px;min-width:0;flex:1 1 auto}
+.composer{display:flex;align-items:flex-end;gap:9px;padding:8px 4px;background:transparent}
+.composer .cwrap{flex:1 1 auto;display:flex;align-items:center;gap:4px;min-width:0;background:var(--surface2);border:.5px solid var(--line);border-radius:22px;padding:4px;padding-inline-start:14px}
+.composer input{border:0;outline:0;background:transparent;font-size:15.5px;padding:9px 0;min-width:0;flex:1 1 auto}
+.cplus,.csend,.cemoji{display:grid;place-items:center;flex:0 0 auto;transition:transform .12s,background .2s}
+.cplus:active,.csend:active,.cemoji:active{transform:scale(.86)}
+.cplus{width:38px;height:38px;border-radius:50%;background:transparent;color:var(--muted)}
+.cplus .icn{stroke-width:1.8}
+.cplus.act{color:var(--teal);background:color-mix(in srgb,var(--teal) 12%,transparent)}
+.cemoji{width:34px;height:34px;border-radius:50%;background:transparent;color:var(--muted)}
+.csend{width:38px;height:38px;border-radius:50%;background:var(--teal);color:#fff;box-shadow:0 4px 12px -2px color-mix(in srgb,var(--teal) 60%,transparent)}
+.csend .icn{stroke-width:2.2}
 .cb{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:var(--teal);color:#fff;font-size:18px;flex:0 0 auto;transition:transform .1s}
 .cb:active{transform:scale(.9)}
-.cb.mini{width:40px;height:40px;background:var(--surface2);color:var(--muted);font-size:18px}
+.cb.mini{width:40px;height:40px;background:transparent;color:var(--muted);font-size:18px}
 .cb.mini .icn{stroke:var(--muted)}
 .cb.mini.act{color:var(--teal);background:color-mix(in srgb,var(--teal) 14%,transparent)}
 .cb.mini.act .icn{stroke:var(--teal)}
@@ -230,13 +239,14 @@ body.recording .cb.rec{background:var(--rose);color:#fff;animation:pulse 1.1s in
 .chatwrap .composer{flex:0 0 auto;margin-top:6px;margin-bottom:calc(2px + env(safe-area-inset-bottom))}
 
 /* ===== bottom nav (clean) ===== */
-.nav{flex:0 0 auto;display:grid;background:var(--surface);border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
-.nav button{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 2px;border-radius:13px;color:var(--muted);font-size:10.5px;font-weight:600;transition:color .18s;position:relative}
-.nav button .icn{width:24px;height:24px;stroke-width:1.7;transition:.18s}
-.nav button.on{color:var(--tealdeep)}
+.nav{flex:0 0 auto;display:grid;background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);border-top:.5px solid var(--line);padding:9px 6px calc(9px + env(safe-area-inset-bottom))}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border-radius:14px;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:.1px;transition:color .2s,transform .12s;position:relative}
+.nav button:active{transform:scale(.9)}
+.nav button .icn{width:26px;height:26px;stroke-width:1.5;transition:.2s}
+.nav button.on{color:var(--teal)}
 body.dark .nav button.on{color:var(--teal2)}
-.nav button.on .icn{stroke:var(--teal)}
-.nav button.on::before{content:"";position:absolute;top:-8px;width:26px;height:3px;border-radius:99px;background:var(--teal)}
+.nav button.on .icn{stroke:var(--teal);stroke-width:1.9;filter:drop-shadow(0 2px 6px color-mix(in srgb,var(--teal) 40%,transparent))}
+body.dark .nav button.on .icn{stroke:var(--teal2)}
 .navic{position:relative;display:inline-flex}
 .navbadge{position:absolute;top:-6px;left:-10px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--rose);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;border:2px solid var(--surface);animation:pulse 2s infinite}
 
@@ -397,7 +407,8 @@ var ICONS={
   info:'<circle cx="12" cy="12" r="8.4"/><path d="M12 11v5M12 7.8h.01"/>',
   chev:'<path d="M14.5 7l-5 5 5 5"/>',
   spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
-  attach:'<path d="M19 11.5l-7.1 7.1a4 4 0 0 1-5.7-5.7l7.2-7.2a2.6 2.6 0 0 1 3.7 3.7l-7.2 7.2a1.2 1.2 0 0 1-1.7-1.7l6.6-6.6"/>'
+  attach:'<path d="M19 11.5l-7.1 7.1a4 4 0 0 1-5.7-5.7l7.2-7.2a2.6 2.6 0 0 1 3.7 3.7l-7.2 7.2a1.2 1.2 0 0 1-1.7-1.7l6.6-6.6"/>',
+  up:'<path d="M12 19V6M6 11l6-6 6 6"/>'
 };
 function ic(name,cls){ return '<svg class="icn '+(cls||"")+'" viewBox="0 0 24 24">'+(ICONS[name]||"")+'</svg>'; }
 
@@ -918,10 +929,9 @@ function scrChat(){
     +'<div class="emoji" id="emoji">'+EMO.map(function(e){return '<button onclick="addEmoji(\''+e+'\')">'+e+'</button>'}).join("")+'</div>'
     +'<div class="replybar" id="replybar" style="display:none"><span class="rp"></span><button onclick="clearReply()">✕</button></div>'
     +'<div class="composer">'
-      +'<button class="cb mini'+(M.ttl!==0?" act":"")+'" onclick="attachMenu()" title="إضافة">'+ic("plus")+'</button>'
-      +'<button class="cb mini" onclick="toggleEmoji()" title="إيموجي">'+ic("smile")+'</button>'
-      +'<input id="mi" placeholder="اكتب رسالة..." oninput="sendTyping()" onkeydown="if(event.key===\'Enter\')sendMsg()"/>'
-      +'<button class="cb" onclick="sendMsg()">'+ic("send","sm")+'</button>'
+      +'<button class="cplus'+(M.ttl!==0?" act":"")+'" onclick="attachMenu()" title="إضافة">'+ic("plus")+'</button>'
+      +'<div class="cwrap"><input id="mi" placeholder="رسالة" oninput="sendTyping()" onkeydown="if(event.key===\'Enter\')sendMsg()"/><button class="cemoji" onclick="toggleEmoji()" title="إيموجي">'+ic("smile","sm")+'</button></div>'
+      +'<button class="csend" onclick="sendMsg()" title="إرسال">'+ic("up","sm")+'</button>'
     +'</div>'
     +'<input type="file" id="imgInput" accept="image/*" style="display:none" onchange="onImagePicked(event)"/>'
     +'</div>';
