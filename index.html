@@ -234,6 +234,8 @@ body.recording .cb.rec{background:var(--rose);color:#fff;animation:pulse 1.1s in
 body.dark .nav button.on{color:var(--teal2)}
 .nav button.on .icn{stroke:var(--teal)}
 .nav button.on::before{content:"";position:absolute;top:-8px;width:26px;height:3px;border-radius:99px;background:var(--teal)}
+.navic{position:relative;display:inline-flex}
+.navbadge{position:absolute;top:-6px;left:-10px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--rose);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;border:2px solid var(--surface);animation:pulse 2s infinite}
 
 /* ===== banner / modal ===== */
 .banner{position:fixed;left:50%;top:12px;transform:translateX(-50%) translateY(-150%);width:calc(100% - 28px);max-width:520px;z-index:200;display:flex;align-items:center;gap:11px;padding:13px 16px;border-radius:16px;background:var(--surface);box-shadow:var(--shadow);border:1px solid var(--line);cursor:pointer;transition:transform .34s cubic-bezier(.2,.8,.2,1)}
@@ -738,7 +740,8 @@ function render(){
   $("sub").textContent=M.screen==="chat"?(M.isGroup?"مجموعة":"محادثة خاصة"):(M.screen==="circle"?"مَن معك الآن":(M.screen==="live"?"حضور لحظي":"دائرتك الخاصة"));
   var active=(M.screen==="chat")?"friends":(M.screen==="live"?"circle":M.screen); var items=navItems();
   var nav=$("nav"); nav.style.gridTemplateColumns="repeat("+items.length+",1fr)";
-  nav.innerHTML=items.map(function(n){return '<button class="'+(active===n[0]?"on":"")+'" onclick="go(\''+n[0]+'\')">'+ic(n[2])+'<span>'+n[1]+'</span></button>'}).join("");
+  var totalUnread=0; for(var k in M.unread){ totalUnread+=(M.unread[k]||0); }
+  nav.innerHTML=items.map(function(n){ var bdg=(n[0]==="friends"&&totalUnread>0)?'<span class="navbadge">'+(totalUnread>99?"99+":totalUnread)+'</span>':''; return '<button class="'+(active===n[0]?"on":"")+'" onclick="go(\''+n[0]+'\')"><span class="navic">'+ic(n[2])+bdg+'</span><span>'+n[1]+'</span></button>'}).join("");
   var map={circle:scrCircle,friends:scrFriends,groups:scrGroups,chat:scrChat,qid:scrQid,profile:scrProfile,settings:scrSettings,live:scrLive};
   $("screen").innerHTML=(map[M.screen]||scrCircle)();
   if(M.screen==="chat") thread();
