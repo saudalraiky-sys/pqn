@@ -274,6 +274,24 @@ body.dark .nav button.on .icn{stroke:var(--em2)}
 .sheet{width:100%;max-width:600px;background:var(--surface);border-radius:28px 28px 0 0;padding:20px;box-shadow:var(--shadow);animation:slideup .32s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow-y:auto;border-top:3px solid color-mix(in srgb,var(--gold) 50%,transparent)}
 @keyframes slideup{from{transform:translateY(70px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .handle{width:44px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 16px}
+.featstrip{display:flex;justify-content:space-around;align-items:center;gap:8px;padding:11px 8px;margin-bottom:16px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(180deg,color-mix(in srgb,var(--gold) 7%,var(--surface)),var(--surface))}
+.featstrip .fi{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.featstrip .fi .icn{width:15px;height:15px;stroke:var(--gold)}
+.featstrip .sep{width:1px;height:16px;background:var(--line)}
+.qstory{display:flex;align-items:center;gap:13px;padding:14px;margin-bottom:16px;border:1px solid color-mix(in srgb,var(--gold) 28%,var(--line));border-radius:17px;background:linear-gradient(120deg,color-mix(in srgb,var(--gold) 10%,var(--surface)),var(--surface));cursor:pointer;transition:transform .1s}
+.qstory:active{transform:scale(.99)}
+.qsrings{display:flex;flex:0 0 auto}
+.qsrings span{width:30px;height:30px;border-radius:50%;border:2px solid var(--gold);margin-inline-start:-10px;background:var(--surface2);box-shadow:0 0 0 2px var(--surface)}
+.qsrings span:first-child{margin-inline-start:0}
+.qstory .qst{font-weight:800;font-size:15px}
+.qstory .qsd{color:var(--muted);font-size:12px;margin-top:2px}
+.qstory .qsc{margin-inline-start:auto;color:var(--gold)}
+.shieldgauge{display:flex;flex-direction:column;align-items:center;padding:8px 0}
+.gauge{position:relative;width:120px;height:120px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--gold) var(--pct,90%),var(--surface2) 0);margin-bottom:14px}
+.gauge::before{content:"";position:absolute;inset:9px;border-radius:50%;background:var(--surface)}
+.gauge .icn{position:relative;z-index:2;width:42px;height:42px;stroke:var(--gold)}
+.glvl{font-weight:800;font-size:16px}.glvl b{color:var(--gold)}
+.gsub{color:var(--muted);font-size:12.5px;margin-top:4px;text-align:center;line-height:1.6}
 .onb{text-align:center;padding:18px 22px 24px}
 .onbic{width:78px;height:78px;border-radius:24px;margin:6px auto 18px;display:grid;place-items:center;background:linear-gradient(150deg,color-mix(in srgb,var(--em) 16%,transparent),color-mix(in srgb,var(--gold) 18%,transparent));color:var(--em)}
 .onbic .icn{width:36px;height:36px;stroke:var(--em);stroke-width:1.7}
@@ -951,9 +969,16 @@ function scrFriends(){
   var strip = (M.friends.length>=3 && !q) ? ('<div class="livestrip">'+quick.map(function(f){var on=M.online[f.id];return '<div class="livecell" onclick="openChat(\''+f.id+'\')"><div class="avring '+(on?"on":"")+'"><div class="av">'+avatarInner(f)+'</div></div><span>'+esc((f.display_name||"").split(" ")[0])+'</span></div>'}).join("")+'</div>') : "";
   var body = flist.length ? (q ? '<div class="card">'+flist.map(friendRow).join("")+'</div>' : friendSections(flist)) : (q?'<div class="empty">لا نتائج بحث.</div>':'<div class="emptybox"><div class="ei">'+ic("users","lg")+'</div><div class="et">دائرتك فارغة الآن</div><div class="ed">شارك اسمك المميّز @ أو رقمك (PIN) مع من تثق به ليضيفك، أو أضِفه أنت برقمه من الأعلى.</div></div>');
   var searchBox=M.friends.length>5?'<div class="addbar"><input id="fsearch" placeholder="ابحث في أصدقائك" value="'+esc(M.fSearch||"")+'" oninput="setFSearch(this.value)"/><button class="cb mini" style="background:transparent">'+ic("search","sm")+'</button></div>':"";
+  var featStrip='<div class="featstrip">'
+    +'<span class="fi">'+ic("lock","sm")+' تشفير شامل</span><span class="sep"></span>'
+    +'<span class="fi">'+ic("circle","sm")+' دائرتك الخاصة</span><span class="sep"></span>'
+    +'<span class="fi">'+ic("shield","sm")+' حماية متقدمة</span></div>';
+  var qstory='<div class="qstory" onclick="go(\'circle\')"><div class="qsrings"><span></span><span></span><span></span></div><div class="grow"><div class="qst">Q‑STORY · الدائرة</div><div class="qsd">لحظات ونبضات خاصة لأقرب دائرتك</div></div><span class="qsc">'+ic("chev","sm")+'</span></div>';
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">'+ic("plus")+'</button></div>'
+    +featStrip
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
     +(M.requests.length?'<div class="shead" style="margin-top:4px"><h3>طلبات واردة</h3><span class="badge">'+M.requests.length+'</span></div><div class="card">'+reqs+'</div>':"")
+    +(M.friends.length>=3&&!q?qstory:"")
     +strip
     +searchBox
     +body;
@@ -1062,6 +1087,14 @@ function scrQid(){
 function scrProfile(){
   var p=M.profile;
   var qrData=p.username?("@"+p.username):(p.pin||p.display_name);
+  var hasKey=!!localStorage.getItem("pqn_ecdh"); var quiet=localStorage.getItem("pqn_quiet")==="1";
+  var score=60+(hasKey?25:0)+(quiet?8:0)+(p.username?7:0); if(score>100)score=100;
+  var lvl=score>=90?"عالٍ جدًا":(score>=70?"عالٍ":"متوسط");
+  var gauge='<div class="card"><div class="shead" style="margin-top:0;justify-content:center"><h3>'+ic("shield","sm")+' وضع الحماية</h3></div>'
+    +'<div class="shieldgauge"><div class="gauge" style="--pct:'+score+'%">'+ic("shield","lg")+'</div>'
+    +'<div class="glvl">مستوى الحماية: <b>'+lvl+'</b></div>'
+    +'<div class="gsub">'+(hasKey?'التشفير طرف‑إلى‑طرف مُفعّل · ':'')+'دخول بلا بريد ولا كلمة مرور · هويتك ملكك وحدك</div>'
+    +'<button class="btn soft full" style="margin-top:14px" onclick="go(\'security\')">عرض تفاصيل الحماية</button></div></div>';
   return backBtn()
     +'<div class="card" style="text-align:center">'
       +'<div class="avwrap"><div class="av big" style="margin:0 auto">'+avatarInner(p)+'</div><button class="avedit" onclick="pickAvatar()" title="تغيير الصورة">📷</button></div>'
@@ -1070,6 +1103,7 @@ function scrProfile(){
       +(p.status?'<div class="mut" style="margin-top:4px">'+esc(p.status)+'</div>':'')
       +'<input type="file" id="avInput" accept="image/*" style="display:none" onchange="onAvatarPicked(event)"/>'
     +'</div>'
+    +gauge
     +'<div class="card" style="text-align:center"><div class="shead" style="margin-top:0;justify-content:center"><h3>بطاقتي · شاركها ليضيفك الآخرون</h3></div>'
       +'<div class="qrbox">'+qrImg(qrData,190)+'</div>'
       +'<div class="details" style="margin-top:6px">'
