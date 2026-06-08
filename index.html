@@ -212,6 +212,9 @@ body.dark .encb .icn{stroke:var(--teal2)}
 .cb:active{transform:scale(.9)}
 .cb.mini{width:40px;height:40px;background:var(--surface2);color:var(--muted);font-size:18px}
 .cb.mini .icn{stroke:var(--muted)}
+.cb.mini.act{color:var(--teal);background:color-mix(in srgb,var(--teal) 14%,transparent)}
+.cb.mini.act .icn{stroke:var(--teal)}
+.ttlnow{margin-inline-start:auto;font-size:11.5px;color:var(--tealdeep);font-weight:700}
 .cb.ghost{background:color-mix(in srgb,var(--amber) 15%,transparent);color:var(--amber)}
 body.recording .cb.rec{background:var(--rose);color:#fff;animation:pulse 1.1s infinite}
 .emoji{display:none;flex-wrap:wrap;gap:4px;max-height:160px;overflow-y:auto;padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--surface);margin-bottom:8px}
@@ -392,7 +395,9 @@ var ICONS={
   logout:'<path d="M14 7V5.5a1.5 1.5 0 0 0-1.5-1.5H6a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 6 20h6.5a1.5 1.5 0 0 0 1.5-1.5V17"/><path d="M9.5 12h11M17 8.5l3.5 3.5L17 15.5"/>',
   camera:'<path d="M4.5 8.5h3l1.3-2h6.4l1.3 2h3a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18v-8a1.5 1.5 0 0 1 1.5-1.5z"/><circle cx="12" cy="13.5" r="3.4"/>',
   info:'<circle cx="12" cy="12" r="8.4"/><path d="M12 11v5M12 7.8h.01"/>',
-  chev:'<path d="M14.5 7l-5 5 5 5"/>'
+  chev:'<path d="M14.5 7l-5 5 5 5"/>',
+  spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+  attach:'<path d="M19 11.5l-7.1 7.1a4 4 0 0 1-5.7-5.7l7.2-7.2a2.6 2.6 0 0 1 3.7 3.7l-7.2 7.2a1.2 1.2 0 0 1-1.7-1.7l6.6-6.6"/>'
 };
 function ic(name,cls){ return '<svg class="icn '+(cls||"")+'" viewBox="0 0 24 24">'+(ICONS[name]||"")+'</svg>'; }
 
@@ -649,6 +654,7 @@ async function openConv(conv, name, isGroup){
 async function loadReacts(){ M.reacts={}; try{ var r=await SB.from("message_reactions").select("message_id,emoji,user_id").eq("conversation_id",M.conv); (r.data||[]).forEach(function(x){ if(!M.reacts[x.message_id]) M.reacts[x.message_id]={counts:{},mine:null}; M.reacts[x.message_id].counts[x.emoji]=(M.reacts[x.message_id].counts[x.emoji]||0)+1; if(x.user_id===M.me.id) M.reacts[x.message_id].mine=x.emoji; }); }catch(e){} }
 async function loadHidden(){ M.hidden={}; try{ var r=await SB.rpc("hidden_in",{p_conv:M.conv}); (r.data||[]).forEach(function(x){ M.hidden[x.message_id]=true; }); }catch(e){} }
 window.reactMsg=async function(id,emoji){ try{ await SB.rpc("react_message",{p_msg:id,p_emoji:emoji}); }catch(e){} await loadReacts(); if(M.screen==="chat") thread(true); closeModal(); };
+window.quickReact=function(id){ var m=M.msgs.find(function(x){return x.id===id}); if(!m||m.deleted)return; openModal('<div class="sheet"><div class="handle"></div><div class="reactpick">'+MREACTS.map(function(e){return '<button onclick="reactMsg(\''+id+'\',\''+e+'\')">'+e+'</button>'}).join("")+'</div><button class="btn soft full" onclick="openMsgMenu(\''+id+'\')">المزيد من الخيارات</button></div>'); };
 var MREACTS=["❤️","🔥","👍","😂","🌿"];
 window.openMsgMenu=function(id){
   var m=M.msgs.find(function(x){return x.id===id}); if(!m||m.deleted)return;
@@ -690,6 +696,17 @@ window.setReply=function(id){ var m=M.msgs.find(function(x){return x.id===id}); 
 function clearReply(){ M.replyTo=null; M.editing=null; var rb=$("replybar"); if(rb)rb.style.display="none"; }
 window.clearReply=clearReply;
 window.toggleChatSearch=function(){ M.searchOpen=!M.searchOpen; if(!M.searchOpen)M.inSearch=""; render(); var e=$("csearch"); if(e)e.focus(); };
+window.attachMenu=function(){
+  var ttlNames={0:"بلا مؤقّت",60:"تنتهي بعد ساعة",1440:"تنتهي بعد 24 ساعة","-1":"🔥 تُحذف بعد القراءة"};
+  openModal('<div class="sheet"><div class="handle"></div><div class="msheet">'
+    +'<button class="msheet-item" onclick="closeModal();pickImage()">'+ic("image","sm")+' صورة</button>'
+    +'<button class="msheet-item" onclick="closeModal();toggleVoice()">'+ic("mic","sm")+' رسالة صوتية (تُسمع مرة واحدة)</button>'
+    +'<button class="msheet-item" onclick="cycleTtlMenu()">'+ic("clock","sm")+' مؤقّت الرسالة <span class="ttlnow">'+(ttlNames[M.ttl]||"")+'</span></button>'
+    +'<button class="msheet-item" onclick="closeModal();suggestReply()">'+ic("spark","sm")+' اقتراح رد</button>'
+    +'<button class="msheet-item" onclick="closeModal();pingInChat()">'+ic("bell","sm")+' إرسال تنبيه (Q-PING)</button>'
+    +'</div><button class="btn soft full" onclick="closeModal()">إغلاق</button></div>');
+};
+window.cycleTtlMenu=function(){ var seq=[0,60,1440,-1]; var i=seq.indexOf(M.ttl); M.ttl=seq[(i+1)%seq.length]; var names={0:"بلا مؤقّت",60:"تنتهي بعد ساعة",1440:"تنتهي بعد 24 ساعة","-1":"🔥 تُحذف بعد القراءة"}; var el=document.querySelector(".ttlnow"); if(el)el.textContent=names[M.ttl]; toast(names[M.ttl]); };
 window.setInSearch=function(v){ M.inSearch=v; thread(true); };
 window.revealBurn=async function(id,btn){ var m=M.msgs.find(function(x){return x.id===id}); if(!m)return; var t=m.enc?(m._txt||"🔒"):(m.body||""); if(btn){ var bub=btn.closest(".bub"); if(bub){ bub.innerHTML='<span class="burntxt">🔥 '+esc(t)+'</span><span class="t">رسالة تُحذف الآن</span>'; } } try{ await SB.rpc("burn_message",{p_msg:id}); }catch(e){} M.msgs=M.msgs.filter(function(x){return x.id!==id}); };
 window.suggestReply=function(){ var last=null; for(var i=M.msgs.length-1;i>=0;i--){ if(M.msgs[i].sender_id!==M.me.id && M.msgs[i].kind==="text"){ last=M.msgs[i]; break; } } var base=["تمام ✅","شكرًا لك 🙏","تحت أمرك","سأرد عليك قريبًا","ممتاز!","حسنًا، اتفقنا","ما شاء الله 🌿","لحظة من فضلك"]; var t=last?(last.enc?(last._txt||""):(last.body||"")):""; var sug=base.slice(); if(/؟|\?/.test(t)) sug=["نعم","لا","ربما","سأتحقق وأخبرك"].concat(sug); if(/شكر/.test(t)) sug=["العفو 🌿","لا شكر على واجب"].concat(sug); var html='<div class="sheet"><div class="handle"></div><div class="shead" style="margin-top:0"><h3>💡 ردود مقترحة</h3><span class="badge">تجريبي</span></div><div style="display:grid;gap:8px">'+sug.slice(0,6).map(function(s){return '<button class="btn soft full" onclick="useSuggest(\''+esc(s).replace(/'/g,"")+'\')">'+esc(s)+'</button>'}).join("")+'</div><button class="btn soft full" style="margin-top:8px" onclick="closeModal()">إغلاق</button></div>'; openModal(html); };
@@ -901,13 +918,9 @@ function scrChat(){
     +'<div class="emoji" id="emoji">'+EMO.map(function(e){return '<button onclick="addEmoji(\''+e+'\')">'+e+'</button>'}).join("")+'</div>'
     +'<div class="replybar" id="replybar" style="display:none"><span class="rp"></span><button onclick="clearReply()">✕</button></div>'
     +'<div class="composer">'
-      +'<button class="cb mini" onclick="toggleEmoji()" title="إيموجي">😊</button>'
-      +'<button class="cb mini" onclick="pickImage()" title="صورة">'+ic("image","sm")+'</button>'
-      +'<button class="cb mini rec" onclick="toggleVoice()" title="رسالة صوتية">🎤</button>'
-      +'<button class="cb mini" id="ttlBtn" onclick="cycleTtl()" title="مؤقّت/حرق">'+ttlLabel()+'</button>'
-      +'<button class="cb mini" onclick="suggestReply()" title="اقتراح رد">💡</button>'
+      +'<button class="cb mini'+(M.ttl!==0?" act":"")+'" onclick="attachMenu()" title="إضافة">'+ic("plus")+'</button>'
+      +'<button class="cb mini" onclick="toggleEmoji()" title="إيموجي">'+ic("smile")+'</button>'
       +'<input id="mi" placeholder="اكتب رسالة..." oninput="sendTyping()" onkeydown="if(event.key===\'Enter\')sendMsg()"/>'
-      +'<button class="cb ghost" onclick="pingInChat()" title="تنبيه">📳</button>'
       +'<button class="cb" onclick="sendMsg()">'+ic("send","sm")+'</button>'
     +'</div>'
     +'<input type="file" id="imgInput" accept="image/*" style="display:none" onchange="onImagePicked(event)"/>'
@@ -933,14 +946,15 @@ function thread(noscroll){
     var rep=""; if(m.reply_to){ var rm=M.msgs.find(function(x){return x.id===m.reply_to}); if(rm){ var rt=rm.enc?(rm._txt||"🔒"):(rm.kind==="image"?"📷 صورة":(rm.kind==="voice"?"🎤 صوت":(rm.body||""))); rep='<span class="quote">'+esc((rt||"").slice(0,70))+'</span>'; } }
     var lock=m.enc?'<span class="lock">'+ic("lock","sm")+'</span>':'';
     var menu='<button class="msgmenu" onclick="event.stopPropagation();openMsgMenu(\''+m.id+'\')" title="خيارات">⋯</button>';
+    var dbl=' ondblclick="quickReact(\''+m.id+'\')"';
     var exp=m.expires_at?'<span class="exp">⏳ '+fmtLeft(m.expires_at)+'</span>':'';
     var ed=m.edited_at?'<span class="edt">معدّلة</span>':'';
-    if(m.kind==="image"){ return '<div class="bubwrap '+(mine?"me":"")+'"><div class="bub imgmsg '+(mine?"me":"")+'">'+sn+rep+'<img src="'+esc(m.body)+'" onclick="window.open(this.src,\'_blank\')"/><span class="t">'+exp+tm(m.created_at)+(mine?readTicks(m):"")+'</span>'+menu+'</div>'+reactsHtml(m.id)+'</div>'; }
-    if(m.kind==="voice"){ var inner = mine ? '🎤 رسالة صوتية · تُسمع مرة واحدة' : '<button class="voicebtn" onclick="playVoice(\''+m.id+'\',this)">🎤 استمع (مرة واحدة)</button>'; return '<div class="bubwrap '+(mine?"me":"")+'"><div class="bub '+(mine?"me":"")+'">'+sn+inner+'<span class="t">'+tm(m.created_at)+(mine?readTicks(m):"")+'</span>'+menu+'</div>'+reactsHtml(m.id)+'</div>'; }
+    if(m.kind==="image"){ return '<div class="bubwrap '+(mine?"me":"")+'"'+dbl+'><div class="bub imgmsg '+(mine?"me":"")+'">'+sn+rep+'<img src="'+esc(m.body)+'" onclick="window.open(this.src,\'_blank\')"/><span class="t">'+exp+tm(m.created_at)+(mine?readTicks(m):"")+'</span>'+menu+'</div>'+reactsHtml(m.id)+'</div>'; }
+    if(m.kind==="voice"){ var inner = mine ? '🎤 رسالة صوتية · تُسمع مرة واحدة' : '<button class="voicebtn" onclick="playVoice(\''+m.id+'\',this)">🎤 استمع (مرة واحدة)</button>'; return '<div class="bubwrap '+(mine?"me":"")+'"'+dbl+'><div class="bub '+(mine?"me":"")+'">'+sn+inner+'<span class="t">'+tm(m.created_at)+(mine?readTicks(m):"")+'</span>'+menu+'</div>'+reactsHtml(m.id)+'</div>'; }
     var txt = m.enc ? (m._txt||"🔒 رسالة مشفّرة") : m.body;
     if(m.burn && !mine){ return '<div class="bub burn">'+sn+'<button class="voicebtn" onclick="revealBurn(\''+m.id+'\',this)">🔥 اضغط للكشف (تُحذف بعد القراءة)</button></div>'; }
     var burnTag = m.burn?'<span class="exp">🔥</span>':'';
-    return '<div class="bubwrap '+(mine?"me":"")+'"><div class="bub '+(mine?"me":"")+'">'+sn+rep+lock+esc(txt)+'<span class="t">'+ed+burnTag+exp+tm(m.created_at)+(mine?readTicks(m):"")+'</span>'+menu+'</div>'+reactsHtml(m.id)+'</div>'
+    return '<div class="bubwrap '+(mine?"me":"")+'"'+dbl+'><div class="bub '+(mine?"me":"")+'">'+sn+rep+lock+esc(txt)+'<span class="t">'+ed+burnTag+exp+tm(m.created_at)+(mine?readTicks(m):"")+'</span>'+menu+'</div>'+reactsHtml(m.id)+'</div>'
   }).join("")||'<div class="empty">'+(sq?"لا نتائج بحث في هذه المحادثة.":"لا رسائل بعد. ابدأ المحادثة 🌿")+'</div>';
   if(!noscroll && !sq) el.scrollTop=el.scrollHeight;
 }
