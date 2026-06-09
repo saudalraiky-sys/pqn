@@ -640,13 +640,10 @@ async function enter(){
   // خطوة 2 إنشاء حساب جديد بهذا الاسم
   var su=await SB.auth.signUp({email:email,password:pass});
   if(su.error){
-    btn.textContent="دخول / إنشاء حساب"; btn.disabled=false;
     var m=(su.error.message||"").toLowerCase();
-    if(m.indexOf("already")>=0||m.indexOf("registered")>=0) toast("هذا الاسم مسجَّل ورمزك غير صحيح. تحقّق من الرمز.");
-    else toast("تعذّر الإنشاء: "+su.error.message);
-    return;
-  }
-  if(su.data && su.data.session){
+    if(m.indexOf("already")>=0||m.indexOf("registered")>=0){ btn.textContent="دخول / إنشاء حساب"; btn.disabled=false; toast("هذا الاسم مسجَّل ورمزك غير صحيح. تحقّق من الرمز."); return; }
+    // أي خطأ آخر (مثل تعطّل البريد) — تراجع آمن للدخول المجهول
+  } else if(su.data && su.data.session){
     var c=await SB.rpc("claim_username",{p_username:name});
     if(c.error||!c.data||!c.data.ok){ var rs=c.data&&c.data.reason; btn.textContent="دخول / إنشاء حساب"; btn.disabled=false; toast(rs==="taken"?"هذا الاسم محجوز، جرّب اسمًا آخر":"تعذّر تثبيت الاسم"); try{await SB.auth.signOut();}catch(e){} M.me=null; return; }
     await boot(); askNotify(); maybeOnboard(); return;
