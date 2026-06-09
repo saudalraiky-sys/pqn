@@ -411,9 +411,10 @@ body.dark .reactbtn.on{color:var(--em2)}
   <div class="auth">
     <div class="brand"><span class="qmark biglogo"></span>PQN</div>
     <p class="tag">دائرتك الخاصة، بعيدًا عن الضوضاء</p>
-    <div class="field"><label>اختر اسمك المميّز (لا يتكرر)</label><input id="name" placeholder="@اسمك" maxlength="30"/></div>
-    <button class="btn primary full" id="enterBtn">ادخل مباشرة</button>
-    <div class="priv">🔒 بلا بريد، بلا كلمة مرور. اسمك المميّز هو هويتك ولا يملكه غيرك.<br/>تبقى مسجَّلًا في كل مرة تفتح فيها التطبيق على هذا الجهاز.</div>
+    <div class="field"><label>اسمك المميّز (معرّفك الثابت)</label><input id="name" placeholder="@اسمك" maxlength="30" autocomplete="username"/></div>
+    <div class="field"><label>رمز الدخول (٦ خانات فأكثر)</label><input id="pass" type="password" placeholder="••••••" maxlength="40" autocomplete="current-password"/></div>
+    <button class="btn primary full" id="enterBtn">دخول / إنشاء حساب</button>
+    <div class="priv">🔒 بلا بريد. اسمك + رمزك هما هويتك — بهما تدخل حسابك نفسه من أي جهاز، ولا يملكه غيرك.<br/>احفظ رمزك؛ فهو الطريق الوحيد لاستعادة حسابك.</div>
   </div>
 </div>
 <div class="shell">
@@ -617,18 +618,45 @@ async function loadFlags(){ try{ var r=await SB.from("app_settings").select("*")
 loadFlags();
 
 $("enterBtn").onclick=enter;
-$("name").addEventListener("keydown",function(e){if(e.key==="Enter")enter()});
+$("name").addEventListener("keydown",function(e){if(e.key==="Enter"){var p=$("pass");if(p)p.focus();}});
+$("pass").addEventListener("keydown",function(e){if(e.key==="Enter")enter()});
+async function emailFor(username){
+  var norm=(username||"").trim().toLowerCase();
+  try{ var buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode("pqn:"+norm));
+    var hex=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("").slice(0,32);
+    return "u"+hex+"@pqn.app"; }catch(e){ return "u"+encodeURIComponent(norm).replace(/[^a-z0-9]/gi,"")+"@pqn.app"; }
+}
 async function enter(){
-  var name=$("name").value.trim().replace(/^@+/,""); if(name.length<2){toast("اختر اسمًا من حرفين على الأقل");return}
+  var name=$("name").value.trim().replace(/^@+/,""); var pass=($("pass")&&$("pass").value)||"";
+  if(name.length<2){toast("اختر اسمًا من حرفين على الأقل");return}
+  if(pass.length<6){toast("رمز الدخول ٦ خانات على الأقل");return}
   await loadFlags();
   if(M.flags.signups_enabled===false){ toast("التسجيل مغلق حاليًا من قِبل المالك"); return; }
-  $("enterBtn").textContent="...جارٍ التحقق"; $("enterBtn").disabled=true;
-  try{ var av=await SB.rpc("username_available",{p_username:name}); if(av&&av.data===false){ $("enterBtn").textContent="ادخل"; $("enterBtn").disabled=false; toast("هذا الاسم محجوز، جرّب اسمًا آخر"); return; } }catch(e){}
-  $("enterBtn").textContent="...جارٍ الدخول";
+  var btn=$("enterBtn"); btn.textContent="...جارٍ الدخول"; btn.disabled=true;
+  var email=await emailFor(name);
+  // خطوة 1 محاولة دخول حساب موجود (نفس الاسم+الرمز على أي جهاز)
+  var si=await SB.auth.signInWithPassword({email:email,password:pass});
+  if(!si.error && si.data && si.data.session){ await boot(); askNotify(); return; }
+  // خطوة 2 إنشاء حساب جديد بهذا الاسم
+  var su=await SB.auth.signUp({email:email,password:pass});
+  if(su.error){
+    btn.textContent="دخول / إنشاء حساب"; btn.disabled=false;
+    var m=(su.error.message||"").toLowerCase();
+    if(m.indexOf("already")>=0||m.indexOf("registered")>=0) toast("هذا الاسم مسجَّل ورمزك غير صحيح. تحقّق من الرمز.");
+    else toast("تعذّر الإنشاء: "+su.error.message);
+    return;
+  }
+  if(su.data && su.data.session){
+    var c=await SB.rpc("claim_username",{p_username:name});
+    if(c.error||!c.data||!c.data.ok){ var rs=c.data&&c.data.reason; btn.textContent="دخول / إنشاء حساب"; btn.disabled=false; toast(rs==="taken"?"هذا الاسم محجوز، جرّب اسمًا آخر":"تعذّر تثبيت الاسم"); try{await SB.auth.signOut();}catch(e){} M.me=null; return; }
+    await boot(); askNotify(); maybeOnboard(); return;
+  }
+  // خطوة 3 تراجع آمن: دخول مجهول إن لزم حتى لا ينكسر التطبيق
+  try{ await SB.auth.signOut(); }catch(e){}
   var r=await SB.auth.signInAnonymously();
-  if(r.error){ $("enterBtn").textContent="ادخل"; $("enterBtn").disabled=false; if((r.error.message||"").toLowerCase().indexOf("anonymous")>=0||r.error.status===422)toast("الدخول المباشر غير مفعّل بعد على الخادم."); else toast("تعذّر الدخول: "+r.error.message); return; }
-  var c=await SB.rpc("claim_username",{p_username:name});
-  if(c.error||!c.data||!c.data.ok){ var rs=c.data&&c.data.reason; $("enterBtn").textContent="ادخل"; $("enterBtn").disabled=false; toast(rs==="taken"?"هذا الاسم محجوز، جرّب اسمًا آخر":(rs==="short"?"الاسم قصير جدًا":"تعذّر تثبيت الاسم")); try{await SB.auth.signOut();}catch(e){} M.me=null; return; }
+  if(r.error){ btn.textContent="دخول / إنشاء حساب"; btn.disabled=false; toast("تعذّر الدخول. حاول مجددًا."); return; }
+  var c2=await SB.rpc("claim_username",{p_username:name});
+  if(c2.error||!c2.data||!c2.data.ok){ var rs2=c2.data&&c2.data.reason; btn.textContent="دخول / إنشاء حساب"; btn.disabled=false; toast(rs2==="taken"?"هذا الاسم محجوز، جرّب اسمًا آخر":"تعذّر تثبيت الاسم"); try{await SB.auth.signOut();}catch(e){} M.me=null; return; }
   await boot(); askNotify(); maybeOnboard();
 }
 function maybeOnboard(){ if(localStorage.getItem("pqn_onboarded")==="1") return; setTimeout(function(){ onboardStep(0); }, 600); }
@@ -698,9 +726,15 @@ function startLive(){
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){ var m=p.new; if(m.sender_id===M.me.id) return; if(isBlocked(m.sender_id)) return; if(M.screen==="chat"&&m.conversation_id===M.conv) return; var fr=M.friends.find(function(x){return x.id===m.sender_id}); var who=(fr&&fr.display_name)||"رسالة"; M.unread[m.sender_id]=(M.unread[m.sender_id]||0)+1; if(fr){ fr.last_at=m.created_at||new Date().toISOString(); sortFriends(); } if(M.screen==="friends") render(); var q=quietActive()||convMuted(m.conversation_id); if(m.kind==="ping"){ if(!q)pingAlert(); inAppNote("📳 "+who, "نبّهك بتنبيه", m.conversation_id, who); if(!q)notify("📳 "+who,"نبّهك", m.sender_id); } else { if(!q){buzz([45]); playBlip();} var prev=m.kind==="image"?"📷 صورة":(m.kind==="voice"?"🎤 رسالة صوتية (مرة واحدة)":(m.enc?"🔒 رسالة مشفّرة":(m.body||"رسالة جديدة"))); var cnt=M.unread[m.sender_id]; inAppNote("📨 "+who+(cnt>1?" ("+cnt+")":""), prev, m.conversation_id, who); if(!q)notify(who+(cnt>1?" ("+cnt+" رسائل)":""), prev, m.sender_id); } })
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"broadcasts"},function(p){ var b=p.new; if(!b||!b.active||b.host_id===M.me.id) return; var fr=M.friends.find(function(x){return x.id===b.host_id}); if(!fr) return; if(!quietActive()){ pingAlert(); } inAppNote("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة", null, null); notify("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة"); loadCircle().then(function(){ if(M.screen==="circle") render(); }); })
     .on("presence",{event:"sync"},function(){ try{ var st=M.live.presenceState(); var seen={}; for(var k in st){ (st[k]||[]).forEach(function(m){ if(m&&m.id) seen[m.id]=true; }); } M.online=seen; if(M.screen==="circle"||M.screen==="friends") render(); }catch(e){} })
-    .subscribe(function(s){ if(s==="SUBSCRIBED"){ try{ M.live.track({id:M.me.id,name:(M.profile&&M.profile.display_name)||"مستخدم"}); }catch(e){} } });
-  document.addEventListener("visibilitychange", function(){ if(!document.hidden && M.me) autoTick(); });
+    .subscribe(function(s){ if(s==="SUBSCRIBED"){ M._liveRetry=0; try{ M.live.track({id:M.me.id,name:(M.profile&&M.profile.display_name)||"مستخدم"}); }catch(e){} } else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"||s==="CLOSED"){ scheduleRelive(); } });
+  if(!M._liveListeners){ M._liveListeners=true;
+    document.addEventListener("visibilitychange", function(){ if(!document.hidden && M.me){ autoTick(); reliveIfNeeded(); } });
+    window.addEventListener("online", function(){ if(M.me) reliveIfNeeded(); });
+  }
 }
+function scheduleRelive(){ if(M._reliveT) return; var n=(M._liveRetry||0); var d=Math.min(1000*Math.pow(2,n),15000); M._liveRetry=n+1; M._reliveT=setTimeout(function(){ M._reliveT=null; relive(); }, d); }
+function relive(){ try{ if(M.live){ SB.removeChannel(M.live); } }catch(e){} M.live=null; if(M.me){ startLive(); refreshAll(true); if(M.screen==="circle") loadCircle().then(function(){ if(M.screen==="circle") render(); }); } }
+function reliveIfNeeded(){ try{ var st=M.live&&M.live.state; if(!M.live || (st&&st!=="joined")){ relive(); } else { try{ M.live.track({id:M.me.id,name:(M.profile&&M.profile.display_name)||"مستخدم"}); }catch(e){} refreshAll(true); } }catch(e){ relive(); } }
 function autoTick(){
   if(!M.me || M.screen==="chat" || M.screen==="live") return;
   refreshAll(true);
