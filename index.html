@@ -291,6 +291,9 @@ body.dark .nav button.on .icn{stroke:var(--em2)}
 .sheet{width:100%;max-width:600px;background:var(--surface);border-radius:28px 28px 0 0;padding:20px;box-shadow:var(--shadow);animation:slideup .32s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow-y:auto;border-top:3px solid color-mix(in srgb,var(--gold) 50%,transparent)}
 @keyframes slideup{from{transform:translateY(70px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .handle{width:44px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 16px}
+.scanwrap{position:relative;width:100%;max-width:300px;aspect-ratio:1;margin:0 auto;border-radius:22px;overflow:hidden;background:#000}
+.scanwrap video{width:100%;height:100%;object-fit:cover;display:block}
+.scanframe{position:absolute;inset:16%;border:3px solid var(--gold);border-radius:18px;box-shadow:0 0 0 100vmax rgba(0,0,0,.4);animation:logoGlow 2s ease-in-out infinite}
 .featstrip{display:flex;justify-content:space-around;align-items:center;gap:8px;padding:11px 8px;margin-bottom:16px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(180deg,color-mix(in srgb,var(--gold) 7%,var(--surface)),var(--surface))}
 .featstrip .fi{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--muted)}
 .featstrip .fi .icn{width:15px;height:15px;stroke:var(--gold)}
@@ -704,13 +707,14 @@ function autoTick(){
   if(M.screen==="groups"){ loadGroups().then(function(){ var a=document.activeElement; if(a&&(a.id==="gname"||a.id==="gdesc"||a.id==="gpriv"||a.id==="gcode")) return; render(); }); }
 }
 
-window.addFriend=async function(){ var h=$("handle").value.trim(); if(!h){toast("أدخل اسم مستخدم أو PIN");return} var r=await SB.rpc("find_profile_by_handle",{handle:h}); if(r.error){toast("خطأ: "+r.error.message);return} var f=Array.isArray(r.data)?r.data[0]:r.data; if(!f){toast("لم يُعثر على مستخدم مطابق");return} if(f.id===M.me.id){toast("لا يمكنك إضافة نفسك");return} var ins=await SB.from("friend_requests").insert({requester_id:M.me.id,recipient_id:f.id,source:h[0]==="@"?"username":"pin"}); if(ins.error){toast(ins.error.message.indexOf("duplicate")>=0?"الطلب مُرسَل مسبقًا":ins.error.message);return} $("handle").value="";toast("أُرسل طلب الصداقة ✓"); };
+async function addByHandle(h){ h=(h||"").trim(); if(!h){toast("أدخل اسم مستخدم أو PIN");return false} var r=await SB.rpc("find_profile_by_handle",{handle:h}); if(r.error){toast("خطأ: "+r.error.message);return false} var f=Array.isArray(r.data)?r.data[0]:r.data; if(!f){toast("لم يُعثر على مستخدم مطابق");return false} if(f.id===M.me.id){toast("لا يمكنك إضافة نفسك");return false} var ins=await SB.from("friend_requests").insert({requester_id:M.me.id,recipient_id:f.id,source:h[0]==="@"?"username":"pin"}); if(ins.error){toast(ins.error.message.indexOf("duplicate")>=0?"الطلب مُرسَل مسبقًا":ins.error.message);return false} logEvent("add_friend"); toast("أُرسل طلب صداقة إلى "+(f.display_name||"المستخدم")+" ✓"); return true; }
+window.addFriend=async function(){ var el=$("handle"); var ok=await addByHandle(el?el.value:""); if(ok&&el)el.value=""; };
 window.acceptReq=async function(id){ var r=await SB.rpc("accept_friend_request",{req_id:id}); if(r.error){toast(r.error.message);return} await refreshAll(true); render(); toast("تم القبول ✓") };
 window.declineReq=async function(id){ await SB.from("friend_requests").update({status:"declined"}).eq("id",id); await refreshAll(true); render(); toast("تم الرفض") };
 window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.id===fid}); if(!fr)return; if(M.unread[fid]){ M.unread[fid]=0; } M.friendId=fid; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} await openConv(r.data, fr.display_name, false); };
 window.openGroup=async function(conv,name){ await openConv(conv, name, true); };
 window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; };
-window.closeModal=function(){ var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
+window.closeModal=function(){ try{ if(typeof stopScan==="function") stopScan(); }catch(e){} var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
 window.deleteChat=async function(fid){ if(!confirm("حذف هذه المحادثة وكل رسائلها؟")) return; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} var d=await SB.rpc("delete_conversation",{p_conv:r.data}); if(d.error){toast("تعذّر الحذف: "+d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } M.unread[fid]=0; await refreshAll(true); go("friends"); toast("تم حذف المحادثة"); };
 window.leaveGroup=async function(conv){ if(!confirm("الخروج من هذه المجموعة؟")) return; var d=await SB.rpc("leave_group",{p_conv:conv}); if(d.error){toast(d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } await loadGroups(); go("groups"); toast("غادرت المجموعة"); };
 window.deleteGroup=async function(gid,conv){ if(!confirm("حذف المجموعة نهائيًا للجميع؟ (للمُنشئ فقط)")) return; var d=await SB.rpc("delete_group",{p_group:gid}); if(d.error){toast((d.error.message||"").indexOf("not allowed")>=0?"الحذف متاح لمُنشئ المجموعة فقط":"تعذّر الحذف: "+d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } await loadGroups(); go("groups"); toast("حُذفت المجموعة"); };
@@ -852,7 +856,43 @@ window.showTrust=async function(){ openModal('<div class="sheet"><div class="han
 window.pingFriend=async function(fid){ if(!flag("messaging_enabled")){toast("المراسلة معطّلة مؤقتًا");return} var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} var ins=await SB.from("messages").insert({conversation_id:r.data,sender_id:M.me.id,body:"📳",kind:"ping"}); if(ins.error){toast(ins.error.message);return} toast("نبّهت صديقك 📳"); };
 window.createGroup=async function(){ if(!flag("groups_enabled")){toast("المجموعات معطّلة");return} var nm=($("gname")&&$("gname").value||"").trim(); var pv=($("gpriv")&&$("gpriv").value)||"private"; var ds=($("gdesc")&&$("gdesc").value||"").trim(); if(!nm){toast("اكتب اسم المجموعة");return} if(pv==="public"&&!flag("public_groups_enabled")){toast("المجموعات العامة معطّلة");return} var r=await SB.rpc("create_group",{p_name:nm,p_privacy:pv,p_description:ds}); if(r.error){toast(r.error.message);return} toast("أُنشئت المجموعة ✓"); await loadGroups(); render(); };
 window.joinAndOpen=async function(gid,name){ var r=await SB.rpc("join_group",{p_group:gid}); if(r.error){toast(r.error.message);return} await loadGroups(); await openConv(r.data,name,true); };
-window.joinByCode=async function(){ var c=($("gcode")&&$("gcode").value||"").trim(); if(c.length<3){toast("أدخل كود المجموعة");return} var r=await SB.rpc("join_group_by_code",{p_code:c}); if(r.error){toast("لم يُعثر على مجموعة بهذا الكود");return} var row=Array.isArray(r.data)?r.data[0]:r.data; if(!row){toast("لم يُعثر على مجموعة بهذا الكود");return} await loadGroups(); await openConv(row.conversation_id, row.name, true); toast("انضممت للمجموعة ✓"); };
+async function joinByCodeValue(c){ c=(c||"").trim(); if(c.length<3){toast("كود غير صالح");return} var r=await SB.rpc("join_group_by_code",{p_code:c}); if(r.error){toast("لم يُعثر على مجموعة بهذا الكود");return} var row=Array.isArray(r.data)?r.data[0]:r.data; if(!row){toast("لم يُعثر على مجموعة بهذا الكود");return} await loadGroups(); await openConv(row.conversation_id, row.name, true); toast("انضممت للمجموعة ✓"); }
+window.joinByCode=async function(){ var c=($("gcode")&&$("gcode").value||"").trim(); joinByCodeValue(c); };
+var _qrStream=null,_qrRAF=null;
+function loadJsQR(){ return new Promise(function(res,rej){ if(window.jsQR)return res(); var s=document.createElement("script"); s.src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"; s.onload=function(){res()}; s.onerror=function(){rej(new Error("load"))}; document.head.appendChild(s); }); }
+window.scanQR=async function(){
+  openModal('<div class="sheet"><div class="handle"></div><h3 style="text-align:center;margin:2px 0 14px">📷 مسح رمز صديق</h3>'
+    +'<div class="scanwrap"><video id="qrvid" playsinline muted></video><div class="scanframe"></div></div>'
+    +'<div class="mut" style="text-align:center;margin-top:12px;line-height:1.7">وجّه الكاميرا إلى رمز PQN في صفحة صديقك (الملف الشخصي أو Q‑ID)</div>'
+    +'<button class="btn soft full" style="margin-top:14px" onclick="closeScan()">إلغاء</button></div>');
+  try{ await loadJsQR(); }catch(e){ toast("تعذّر تحميل الماسح، تحقّق من الاتصال"); return; }
+  try{
+    _qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    var v=$("qrvid"); if(!v){closeScan();return} v.srcObject=_qrStream; await v.play();
+    var cv=document.createElement("canvas"); var cx=cv.getContext("2d",{willReadFrequently:true});
+    var tick=function(){
+      if(!_qrStream)return;
+      try{
+        if(v.readyState>=2 && v.videoWidth){
+          cv.width=v.videoWidth; cv.height=v.videoHeight; cx.drawImage(v,0,0,cv.width,cv.height);
+          var img=cx.getImageData(0,0,cv.width,cv.height);
+          var code=window.jsQR&&window.jsQR(img.data,img.width,img.height,{inversionAttempts:"dontInvert"});
+          if(code&&code.data){ onScan(code.data); return; }
+        }
+      }catch(e){}
+      _qrRAF=requestAnimationFrame(tick);
+    };
+    _qrRAF=requestAnimationFrame(tick);
+  }catch(e){ toast("تعذّر فتح الكاميرا — تأكّد من منح الإذن"); closeScan(); }
+};
+function onScan(data){ data=(data||"").trim(); stopScan(); closeModal();
+  if(!data)return;
+  if(/^GROUP:/i.test(data)){ joinByCodeValue(data.replace(/^GROUP:/i,"")); }
+  else if(/^PQN:/i.test(data)){ addByHandle(data.replace(/^PQN:/i,"")); }
+  else { addByHandle(data); }
+}
+function stopScan(){ if(_qrRAF){cancelAnimationFrame(_qrRAF);_qrRAF=null;} if(_qrStream){try{_qrStream.getTracks().forEach(function(t){t.stop()});}catch(e){} _qrStream=null;} }
+window.closeScan=function(){ stopScan(); closeModal(); };
 function inviteLink(code){ var base=location.origin+location.pathname.replace(/index\.html$/,""); return base+"#join="+encodeURIComponent(code); }
 async function handleInvite(){ try{ var h=location.hash||""; var m=h.match(/join=([^&]+)/); if(!m) return; var code=decodeURIComponent(m[1]); history.replaceState(null,"",location.pathname+location.search); var r=await SB.rpc("join_group_by_code",{p_code:code}); if(r.error){toast("تعذّر الانضمام للمجموعة");return} var row=Array.isArray(r.data)?r.data[0]:r.data; if(row){ await loadGroups(); await openConv(row.conversation_id,row.name,true); toast("انضممت للمجموعة عبر الرابط ✓"); } }catch(e){} }
 window.groupInvite=function(code){ if(!code){toast("لا يوجد كود");return} var link=inviteLink(code); if(navigator.share){ navigator.share({title:"دعوة لمجموعة PQN",text:"انضم لمجموعتي على PQN",url:link}).catch(function(){copyText(link)}); } else { copyText(link); toast("نُسخ رابط الدعوة ✓"); } };
@@ -1006,7 +1046,7 @@ function scrFriends(){
     +'<span class="fi">'+ic("circle","sm")+' دائرتك الخاصة</span><span class="sep"></span>'
     +'<span class="fi">'+ic("shield","sm")+' حماية متقدمة</span></div>';
   var qstory='<div class="qstory" onclick="go(\'circle\')"><div class="qsrings"><span></span><span></span><span></span></div><div class="grow"><div class="qst">Q‑STORY · الدائرة</div><div class="qsd">لحظات ونبضات خاصة لأقرب دائرتك</div></div><span class="qsc">'+ic("chev","sm")+'</span></div>';
-  return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><button class="cb" onclick="addFriend()" title="إضافة">'+ic("plus")+'</button></div>'
+  return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><div style="display:flex;gap:6px"><button class="cb mini" onclick="scanQR()" title="مسح رمز">'+ic("camera")+'</button><button class="cb" onclick="addFriend()" title="إضافة">'+ic("plus")+'</button></div></div>'
     +featStrip
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
     +(M.requests.length?'<div class="shead" style="margin-top:4px"><h3>طلبات واردة</h3><span class="badge">'+M.requests.length+'</span></div><div class="card">'+reqs+'</div>':"")
@@ -1114,7 +1154,7 @@ window.loadOlder=async function(){
 };
 function scrQid(){
   var list=M.qids.filter(function(q){return !q.revoked}).map(function(q){return '<div class="row"><div class="av">🪪</div><div class="grow"><div class="nm" style="direction:ltr;cursor:pointer" onclick="copyText(\''+esc(q.code)+'\')">'+esc(q.code)+'</div><div class="mut">اضغط للنسخ · صالح 30 يومًا</div></div><button class="chip" onclick="killQid(\''+q.id+'\')">إلغاء</button></div>'}).join("")||'<div class="empty">لا هويات نشطة. أنشئ واحدة وشاركها.</div>';
-  return backBtn()+'<div class="strip">🪪 أنشئ كودًا تشاركه مع من تريد إضافته. يكتبه في خانة «إضافة صديق» في صفحته الرئيسية فيصلك طلب صداقة. بديل أنيق عن مشاركة رقمك الدائم.</div><button class="btn primary full" onclick="makeQid()" style="margin-bottom:12px">إنشاء Q-ID جديد</button><div class="card">'+list+'</div>';
+  return backBtn()+'<div class="strip">🪪 أنشئ كودًا تشاركه مع من تريد إضافته. يكتبه في خانة «إضافة صديق» في صفحته الرئيسية فيصلك طلب صداقة. بديل أنيق عن مشاركة رقمك الدائم.</div><button class="btn primary full" onclick="scanQR()" style="margin-bottom:10px">'+ic("camera","sm")+' مسح رمز صديق</button><button class="btn soft full" onclick="makeQid()" style="margin-bottom:12px">إنشاء Q-ID جديد</button><div class="card">'+list+'</div>';
 }
 function scrProfile(){
   var p=M.profile;
