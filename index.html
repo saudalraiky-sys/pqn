@@ -90,8 +90,8 @@ body.dark .secondary{color:var(--em2)}
 .hidden{display:none!important}
 
 /* ===== toast ===== */
-.toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%) translateY(16px);background:var(--navy);color:#EAF5F0;padding:14px 20px;border-radius:15px;font-size:14px;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);z-index:999;max-width:88%;box-shadow:var(--shadow);text-align:center;pointer-events:none;border:1px solid color-mix(in srgb,var(--gold) 22%,transparent)}
-.toast.show{opacity:1;transform:translateX(-50%)}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px) scale(.94);background:var(--navy);color:#EAF5F0;padding:14px 20px;border-radius:16px;font-size:14px;opacity:0;transition:transform .5s cubic-bezier(.22,1.2,.36,1),opacity .35s ease;z-index:999;max-width:88%;box-shadow:var(--shadow);text-align:center;pointer-events:none;border:1px solid color-mix(in srgb,var(--gold) 22%,transparent);will-change:transform,opacity}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 
 /* ===== shell ===== */
 .shell{display:none;max-width:600px;margin:0 auto;min-height:100vh;position:relative;background:var(--surface)}
@@ -287,9 +287,13 @@ body.dark .nav button.on .icn{stroke:var(--em2)}
 .banner .bb{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
 .banner .bi{font-size:24px;flex:0 0 auto}
 .modal{position:fixed;inset:0;z-index:300;display:none;align-items:flex-end;justify-content:center;background:rgba(6,15,11,.5)}
-.modal.show{display:flex}
-.sheet{width:100%;max-width:600px;background:var(--surface);border-radius:28px 28px 0 0;padding:20px;box-shadow:var(--shadow);animation:slideup .32s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow-y:auto;border-top:3px solid color-mix(in srgb,var(--gold) 50%,transparent)}
-@keyframes slideup{from{transform:translateY(70px);opacity:.5}to{transform:translateY(0);opacity:1}}
+.modal.show{display:flex;animation:bgFade .28s ease}
+@keyframes bgFade{from{background:rgba(6,15,11,0)}to{background:rgba(6,15,11,.5)}}
+.sheet{width:100%;max-width:600px;background:var(--surface);border-radius:28px 28px 0 0;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom));box-shadow:var(--shadow);animation:slideup .46s cubic-bezier(.22,1.12,.36,1);max-height:88vh;overflow-y:auto;border-top:3px solid color-mix(in srgb,var(--gold) 50%,transparent);will-change:transform;touch-action:pan-y}
+.sheet.dragging{animation:none;transition:none;user-select:none}
+.sheet.snapback{transition:transform .42s cubic-bezier(.22,1.12,.36,1)}
+@keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.handle{width:44px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 16px;cursor:grab}
 .handle{width:44px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 16px}
 .scanwrap{position:relative;width:100%;max-width:300px;aspect-ratio:1;margin:0 auto;border-radius:22px;overflow:hidden;background:#000}
 .scanwrap video{width:100%;height:100%;object-fit:cover;display:block}
@@ -403,6 +407,7 @@ body.dark .reactbtn.on{color:var(--em2)}
 .fheart{position:absolute;bottom:80px;font-size:26px;animation:floatup 2.4s ease-out forwards}
 @keyframes floatup{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1}100%{transform:translateY(-340px) scale(1.3);opacity:0}}
 
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
@@ -744,8 +749,17 @@ window.acceptReq=async function(id){ var r=await SB.rpc("accept_friend_request",
 window.declineReq=async function(id){ await SB.from("friend_requests").update({status:"declined"}).eq("id",id); await refreshAll(true); render(); toast("تم الرفض") };
 window.openChat=async function(fid){ var fr=M.friends.find(function(f){return f.id===fid}); if(!fr)return; if(M.unread[fid]){ M.unread[fid]=0; } M.friendId=fid; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} await openConv(r.data, fr.display_name, false); };
 window.openGroup=async function(conv,name){ await openConv(conv, name, true); };
-window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; };
+window.openModal=function(html){ var m=$("modal"); m.innerHTML=html; m.classList.add("show"); m.onclick=function(e){ if(e.target===m) closeModal(); }; setupSheetDrag(); };
 window.closeModal=function(){ try{ if(typeof stopScan==="function") stopScan(); }catch(e){} var m=$("modal"); if(m){ m.classList.remove("show"); m.innerHTML=""; } };
+function setupSheetDrag(){
+  var m=$("modal"); var sheet=m&&m.querySelector(".sheet"); if(!sheet)return;
+  var startY=0, dy=0, dragging=false, t0=0;
+  function down(e){ var y=(e.touches?e.touches[0].clientY:e.clientY); if(sheet.scrollTop>2 && !(e.target.classList&&e.target.classList.contains("handle"))) return; startY=y; dy=0; t0=Date.now(); dragging=true; sheet.classList.add("dragging"); sheet.classList.remove("snapback"); }
+  function move(e){ if(!dragging)return; var y=(e.touches?e.touches[0].clientY:e.clientY); dy=y-startY; if(dy<0)dy=dy*0.3; sheet.style.transform="translateY("+dy+"px)"; if(dy>0&&e.cancelable)e.preventDefault(); }
+  function up(){ if(!dragging)return; dragging=false; sheet.classList.remove("dragging"); var v=dy/Math.max(1,(Date.now()-t0)); if(dy>130||v>0.55){ sheet.style.transition="transform .3s cubic-bezier(.4,0,1,1)"; sheet.style.transform="translateY(100%)"; setTimeout(closeModal,260); } else { sheet.classList.add("snapback"); sheet.style.transform="translateY(0)"; setTimeout(function(){sheet.classList.remove("snapback")},440); } }
+  sheet.addEventListener("touchstart",down,{passive:true}); sheet.addEventListener("touchmove",move,{passive:false}); sheet.addEventListener("touchend",up,{passive:true});
+  sheet.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
+}
 window.deleteChat=async function(fid){ if(!confirm("حذف هذه المحادثة وكل رسائلها؟")) return; var r=await SB.rpc("get_or_create_direct_conversation",{other:fid}); if(r.error){toast(r.error.message);return} var d=await SB.rpc("delete_conversation",{p_conv:r.data}); if(d.error){toast("تعذّر الحذف: "+d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } M.unread[fid]=0; await refreshAll(true); go("friends"); toast("تم حذف المحادثة"); };
 window.leaveGroup=async function(conv){ if(!confirm("الخروج من هذه المجموعة؟")) return; var d=await SB.rpc("leave_group",{p_conv:conv}); if(d.error){toast(d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } await loadGroups(); go("groups"); toast("غادرت المجموعة"); };
 window.deleteGroup=async function(gid,conv){ if(!confirm("حذف المجموعة نهائيًا للجميع؟ (للمُنشئ فقط)")) return; var d=await SB.rpc("delete_group",{p_group:gid}); if(d.error){toast((d.error.message||"").indexOf("not allowed")>=0?"الحذف متاح لمُنشئ المجموعة فقط":"تعذّر الحذف: "+d.error.message);return} closeModal(); if(M.screen==="chat"){ await leaveChat(); } await loadGroups(); go("groups"); toast("حُذفت المجموعة"); };
