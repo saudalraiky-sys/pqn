@@ -440,6 +440,8 @@ const SB = createClient("https://dnocxanataaawgvdfaoj.supabase.co","sb_publishab
 const VAPID_PUBLIC="BPgIBMTrxjgsqJ7llZ2nuaGxWBPUwfg-zlZ0PlsOTerrRQODcZ64jRQ-A5pHQQ86T023cnUpVkv4QLgj4TBeJv4";
 const $ = function(id){return document.getElementById(id)};
 const M = { me:null, profile:null, friends:[], requests:[], qids:[], groups:[], pubGroups:[], suggestions:[], stats:null, recent:[], flags:{}, owner:false, screen:"friends", prev:"friends", conv:null, friend:null, isGroup:false, members:{}, msgs:[], chan:null, live:null, poll:null, booting:false, sig:"", unread:{} };
+window.addEventListener("error", function(e){ try{ console.warn("PQN error:",e.message); }catch(_){} });
+window.addEventListener("unhandledrejection", function(e){ try{ console.warn("PQN promise:",e.reason&&e.reason.message||e.reason); }catch(_){} });
 const ACCENTS={gold:["#D4AF37","#F0D9A6","#9C7B14"],emerald:["#0E7A5F","#16A37C","#0A5240"],teal:["#27B8AE","#57D7CF","#0f6e56"],blue:["#3B82F6","#7DA9FB","#1E3A8A"],amber:["#D9A441","#EAC374","#8A5B00"],rose:["#C85C5C","#E08A8A","#7E3030"],purple:["#8B5CF6","#B49BFA","#4C2E91"]};
 
 function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -698,8 +700,7 @@ async function boot(){
     await loadMutedMap();
     await loadBlocks();
     logEvent("app_open");
-    await loadCircle();
-    M.screen="circle"; render();
+    M.screen="friends"; render();
     startLive(); askNotify(); handleInvite();
   }catch(e){ toast("تعذّر تحميل البيانات: "+(e&&e.message||e)); }
   M.booting=false;
@@ -726,7 +727,7 @@ function startLive(){
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"recipient_id=eq."+M.me.id},function(){ var n=M.requests.length; refreshAll(true).then(function(){ if(M.requests.length>n){ buzz(); toast("📬 طلب صداقة جديد"); notify("PQN","📬 طلب صداقة جديد"); } }); })
     .on("postgres_changes",{event:"*",schema:"public",table:"friend_requests",filter:"requester_id=eq."+M.me.id},function(){ refreshAll(true); })
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},function(p){ var m=p.new; if(m.sender_id===M.me.id) return; if(isBlocked(m.sender_id)) return; if(M.screen==="chat"&&m.conversation_id===M.conv) return; var fr=M.friends.find(function(x){return x.id===m.sender_id}); var who=(fr&&fr.display_name)||"رسالة"; M.unread[m.sender_id]=(M.unread[m.sender_id]||0)+1; if(fr){ fr.last_at=m.created_at||new Date().toISOString(); sortFriends(); } if(M.screen==="friends") render(); var q=quietActive()||convMuted(m.conversation_id); if(m.kind==="ping"){ if(!q)pingAlert(); inAppNote("📳 "+who, "نبّهك بتنبيه", m.conversation_id, who); if(!q)notify("📳 "+who,"نبّهك", m.sender_id); } else { if(!q){buzz([45]); playBlip();} var prev=m.kind==="image"?"📷 صورة":(m.kind==="voice"?"🎤 رسالة صوتية (مرة واحدة)":(m.enc?"🔒 رسالة مشفّرة":(m.body||"رسالة جديدة"))); var cnt=M.unread[m.sender_id]; inAppNote("📨 "+who+(cnt>1?" ("+cnt+")":""), prev, m.conversation_id, who); if(!q)notify(who+(cnt>1?" ("+cnt+" رسائل)":""), prev, m.sender_id); } })
-    .on("postgres_changes",{event:"INSERT",schema:"public",table:"broadcasts"},function(p){ var b=p.new; if(!b||!b.active||b.host_id===M.me.id) return; var fr=M.friends.find(function(x){return x.id===b.host_id}); if(!fr) return; if(!quietActive()){ pingAlert(); } inAppNote("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة", null, null); notify("🔴 "+fr.display_name, "بدأ بثًّا في الدائرة"); loadCircle().then(function(){ if(M.screen==="circle") render(); }); })
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"broadcasts"},function(p){ return; })
     .on("presence",{event:"sync"},function(){ try{ var st=M.live.presenceState(); var seen={}; for(var k in st){ (st[k]||[]).forEach(function(m){ if(m&&m.id) seen[m.id]=true; }); } M.online=seen; if(M.screen==="circle"||M.screen==="friends") render(); }catch(e){} })
     .subscribe(function(s){ if(s==="SUBSCRIBED"){ M._liveRetry=0; try{ M.live.track({id:M.me.id,name:(M.profile&&M.profile.display_name)||"مستخدم"}); }catch(e){} } else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"||s==="CLOSED"){ scheduleRelive(); } });
   if(!M._liveListeners){ M._liveListeners=true;
@@ -968,7 +969,7 @@ window.goBack=function(){ if($("modal")&&$("modal").classList.contains("show")){
 window.refreshNow=async function(){ await refreshAll(false); };
 function greetWord(){ var h=new Date().getHours(); return h<12?"صباح الخير":(h<17?"نهارك سعيد":"مساء الخير"); }
 
-function navItems(){ var n=[["circle","الدائرة","circle"],["friends","المحادثات","chat"]]; if(flag("groups_enabled")) n.push(["groups","مجموعات","users"]); n.push(["profile","الملف","user"]); n.push(["settings","إعدادات","gear"]); return n; }
+function navItems(){ var n=[["friends","المحادثات","chat"]]; if(flag("groups_enabled")) n.push(["groups","مجموعات","users"]); n.push(["profile","الملف","user"]); n.push(["settings","إعدادات","gear"]); return n; }
 function backBtn(){ return '<button class="chip" onclick="goBack()" style="margin-bottom:14px">'+ic("back","sm")+'رجوع</button>'; }
 function render(){
   document.body.classList.toggle("chatting", M.screen==="chat"||M.screen==="live");
@@ -981,7 +982,8 @@ function render(){
   nav.innerHTML=items.map(function(n){ var bdg=(n[0]==="friends"&&totalUnread>0)?'<span class="navbadge">'+(totalUnread>99?"99+":totalUnread)+'</span>':''; return '<button aria-label="'+n[1]+'" class="'+(active===n[0]?"on":"")+'" onclick="go(\''+n[0]+'\')"><span class="navic">'+ic(n[2])+bdg+'</span><span>'+n[1]+'</span></button>'}).join("");
   var map={circle:scrCircle,friends:scrFriends,groups:scrGroups,chat:scrChat,qid:scrQid,profile:scrProfile,settings:scrSettings,live:scrLive};
   var sc=$("screen"); var changed=(M._lastScreen!==M.screen); M._lastScreen=M.screen;
-  sc.innerHTML=(map[M.screen]||scrCircle)();
+  try{ sc.innerHTML=(map[M.screen]||scrFriends)(); }
+  catch(err){ try{ console.warn("render fail",err); }catch(_){} if(M.screen!=="friends"){ M.screen="friends"; try{ sc.innerHTML=scrFriends(); }catch(e2){ sc.innerHTML='<div class="empty">حدث خطأ. أعد فتح التطبيق.</div>'; } } else { sc.innerHTML='<div class="empty">حدث خطأ مؤقت. اسحب للتحديث.</div>'; } }
   if(changed){ sc.classList.remove("swap"); void sc.offsetWidth; sc.classList.add("swap"); }
   if(M.screen==="chat") thread();
   if(M.screen==="live") liveAfterRender();
@@ -1090,7 +1092,7 @@ function scrFriends(){
     +'<span class="fi">'+ic("lock","sm")+' تشفير شامل</span><span class="sep"></span>'
     +'<span class="fi">'+ic("circle","sm")+' دائرتك الخاصة</span><span class="sep"></span>'
     +'<span class="fi">'+ic("shield","sm")+' حماية متقدمة</span></div>';
-  var qstory='<div class="qstory" onclick="go(\'circle\')"><div class="qsrings"><span></span><span></span><span></span></div><div class="grow"><div class="qst">Q‑STORY · الدائرة</div><div class="qsd">لحظات ونبضات خاصة لأقرب دائرتك</div></div><span class="qsc">'+ic("chev","sm")+'</span></div>';
+  var qstory='';
   return '<div class="addbar"><input id="handle" placeholder="أضف صديقًا: @اسمه أو رقمه (PIN)" onkeydown="if(event.key===\'Enter\')addFriend()"/><div style="display:flex;gap:6px"><button class="cb mini" onclick="scanQR()" title="مسح رمز">'+ic("camera")+'</button><button class="cb" onclick="addFriend()" title="إضافة">'+ic("plus")+'</button></div></div>'
     +featStrip
     +'<div class="greet">'+greetWord()+'، <span>'+esc(M.profile.display_name)+'</span> 👋</div>'
